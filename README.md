@@ -10,6 +10,8 @@ All changes **must go through a Pull Request (PR)**.
 #### 1. Create a new branch
 Always branch off `main`.
 
+#### Demo change
+
 ```bash
 git checkout main
 git pull origin main
