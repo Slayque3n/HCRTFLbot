@@ -1,6 +1,6 @@
 ## 🛠️ Development Workflow
 
-To keep `main` stable, **direct pushes to `main` are blocked**.  
+To keep `main` stable, **direct pushes to `main` are trying to be blocked**.  
 All changes **must go through a Pull Request (PR)**.
 
 ---
