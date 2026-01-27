@@ -18,21 +18,23 @@ def text_to_speech(text, language="en", filename="output.mp3", slow=False):
 
 def speech_to_text():
     r = sr.Recognizer()
+    r.pause_threshold = 1  # Wait 2 seconds of silence before considering phrase complete
 
     while True:
         try:
             with sr.Microphone() as source:
                 print("Listening...")
                 r.adjust_for_ambient_noise(source, duration=0.2)
-                audio = r.listen(source)
+                audio = r.listen(source,  timeout=90, phrase_time_limit=30)
 
             text = r.recognize_google(audio).lower()
             print("You said:", text)
-            text_to_speech(text)
+            
 
             if "exit" in text:
                 print("Exiting program...")
-                break
+                return None
+            return text
 
         except sr.RequestError as e:
             print(f"Could not request results; {e}")
