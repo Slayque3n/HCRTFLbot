@@ -1,33 +1,39 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, render_template, request, redirect, url_for
 from chatwithai import *
 from maintextandspeech import *
 
 app = Flask(__name__)
 
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 def index():
-    return send_file("index.html")
+    if request.method == "POST":
+        language = request.form["language"]
+        return redirect(url_for("speak", language=language))
+    return render_template("index.html")
 
-@app.route("/talk", methods=["POST"])
-def talk():
-    data = request.json
-    language = data["language"]
-    user_text = speech_to_text(language)
+@app.route("/speak", methods=["GET", "POST"])
+def speak():
+    language = request.args.get("language", "en-US")
+    heard = ""
+    response = ""
 
-    llm_response = ask_llm(
-        user_text +
-        " via the underground, short and simple answer, no *, answer in " +
-        language
+    if request.method == "POST":
+        heard = speech_to_text(language)
+        
+        response = ask_llm(
+            heard +
+            " via the underground, short answer, tell me direction and line, no *, answer in " +
+            language
+        )
+        findkeywords(response)
+        text_to_speech(response, language)
+
+    return render_template(
+        "speak.html",
+        language=language,
+        heard=heard,
+        response=response
     )
-
-    filename = "output.mp3"
-    text_to_speech(llm_response, language, filename)
-
-    return jsonify({
-        "heard_text": user_text,
-        "response_text": llm_response,
-        "audio": filename
-    })
 
 if __name__ == "__main__":
     app.run(debug=True)

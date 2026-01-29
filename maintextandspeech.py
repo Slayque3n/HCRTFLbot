@@ -11,6 +11,20 @@ TTS_LANG_MAP = {
     "it-IT": "it"
 }
 
+# Tube lines (keywords to search in lines)
+keywordsline = [
+    "Bakerloo", "Central", "Circle", "District", "Hammersmith & City",
+    "Jubilee", "Metropolitan", "Northern", "Piccadilly", "Victoria", "Waterloo & City", "London Overground", "DLR", "Docklands Light Railway"
+]
+
+# Directions (keywords to search for)
+keywordsdirection = [
+    "north", "south", "east", "west",
+    "northbound", "southbound", "eastbound", "westbound",
+    "towards north", "towards south", "towards east", "towards west"
+]
+
+
 def text_to_speech(text, language,filename="output.mp3", slow=False):
     tts_lang = TTS_LANG_MAP.get(language, "en")
     tts = gTTS(text=text, lang=tts_lang, slow=slow)
@@ -60,6 +74,34 @@ def speech_to_text(language):
         except KeyboardInterrupt:
             print("Program terminated by user")
             break
+
+
+def findkeywords(heardspeech):
+    # Initialize variables
+    found_line = None
+    found_direction = None
+    # Initialize results
+    found_line = None
+    found_direction = None
+
+    # Scan the string for the first direction mentioned
+    for direction in keywordsdirection:
+        
+        if direction in heardspeech.lower():  # lowercase for case-insensitive match
+            found_direction = direction
+            break
+
+
+    # Scan the string for the first tube line mentioned
+    for line in keywordsline:
+        if line in heardspeech:
+            found_line = line
+            break
+
+    
+    print("First Tube line mentioned:", found_line)
+    print("First direction mentioned:", found_direction)
+
 
 
 if __name__ == "__main__":
