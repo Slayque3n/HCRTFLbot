@@ -1,3 +1,9 @@
+# To Run
+To run webbased translation run App.py, to run rkinter based talking run UI.py
+
+
+
+
 ## Development Workflow
 
 To keep `main` stable, **direct pushes to `main` are blocked**.  
