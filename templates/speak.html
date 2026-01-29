@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Speak</title>
+</head>
+<body>
+
+<h2>Speak page</h2>
+
+<p><b>Language:</b> {{ language }}</p>
+
+<form method="POST">
+    <button type="submit">🎤 Speak</button>
+</form>
+
+<hr>
+
+<p><b>Text heard:</b> {{ heard }}</p>
+<p><b>LLM response:</b> {{ response }}</p>
+
+<br>
+
+<a href="{{ url_for('index') }}">← Change language</a>
+
+</body>
+</html>

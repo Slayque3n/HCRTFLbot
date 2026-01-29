@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Select Language</title>
+    <style>
+        .flag { width: 48px; border: 2px solid transparent; }
+        button { background: none; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<h2>Select a language</h2>
+
+<form method="POST">
+    <button name="language" value="en-US">
+        <img src="{{ url_for('static', filename='flags/en.png') }}" class="flag">
+    </button>
+    <button name="language" value="ru-RU">
+        <img src="{{ url_for('static', filename='flags/ru.png') }}" class="flag">
+    </button>
+    <button name="language" value="de-DE">
+        <img src="{{ url_for('static', filename='flags/de.png') }}" class="flag">
+    </button>
+    <button name="language" value="fr-FR">
+        <img src="{{ url_for('static', filename='flags/fr.png') }}" class="flag">
+    </button>
+    <button name="language" value="es-ES">
+        <img src="{{ url_for('static', filename='flags/es.png') }}" class="flag">
+    </button>
+    <button name="language" value="it-IT">
+        <img src="{{ url_for('static', filename='flags/it.png') }}" class="flag">
+    </button>
+</form>
+
+</body>
+</html>
