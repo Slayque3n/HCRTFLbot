@@ -2,7 +2,22 @@ from gtts import gTTS
 import os
 import speech_recognition as sr
 
-def text_to_speech(text, language="en", filename="output.mp3", slow=False):
+TTS_LANG_MAP = {
+    "en-US": "en",
+    "ru-RU": "ru",
+    "de-DE": "de",
+    "fr-FR": "fr",
+    "es-ES": "es",
+    "it-IT": "it"
+}
+
+def text_to_speech(text, language,filename="output.mp3", slow=False):
+    tts_lang = TTS_LANG_MAP.get(language, "en")
+    tts = gTTS(text=text, lang=tts_lang, slow=slow)
+    tts.save(filename)
+    os.system(f"start {filename}")  # Windows only
+
+def text_to_speech(text, language, filename="output.mp3", slow=False):
     """
     Converts text to speech and plays the audio.
 
@@ -16,7 +31,7 @@ def text_to_speech(text, language="en", filename="output.mp3", slow=False):
     os.system(f"start {filename}")  # Windows only
 
 
-def speech_to_text():
+def speech_to_text(language):
     r = sr.Recognizer()
     r.pause_threshold = 1  # Wait 2 seconds of silence before considering phrase complete
 
@@ -25,9 +40,9 @@ def speech_to_text():
             with sr.Microphone() as source:
                 print("Listening...")
                 r.adjust_for_ambient_noise(source, duration=0.2)
-                audio = r.listen(source,  timeout=90, phrase_time_limit=30)
+                audio = r.listen(source,  timeout=90, phrase_time_limit=40)
 
-            text = r.recognize_google(audio).lower()
+            text = r.recognize_google(audio, language=language).lower()
             print("You said:", text)
             
 
@@ -48,4 +63,9 @@ def speech_to_text():
 
 
 if __name__ == "__main__":
-    speech_to_text()
+    language = ""
+    languages = ["ru-RU", "en-US", "de-DE", "fr-FR", "es-ES", "it-IT"] 
+    while language not in languages:
+        language = input("Enter the language code (e.g. ru-RU, en-US, de-DE, fr-FR, es-ES, it-IT): ")
+
+    speech_to_text(language)
