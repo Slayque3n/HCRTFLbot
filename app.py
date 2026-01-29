@@ -19,11 +19,13 @@ def speak():
 
     if request.method == "POST":
         heard = speech_to_text(language)
+        
         response = ask_llm(
             heard +
-            " via the underground, short and simple answer, no *, answer in " +
+            " via the underground, short answer, tell me direction and line, no *, answer in " +
             language
         )
+        findkeywords(response)
         text_to_speech(response, language)
 
     return render_template(
