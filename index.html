@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Voice Assistant</title>
+    <style>
+        body { font-family: Arial; }
+        .box { border: 1px solid #ccc; padding: 10px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<h2>Voice Assistant</h2>
+
+<select id="language">
+    <option value="en-US">English</option>
+    <option value="ru-RU">Russian</option>
+    <option value="de-DE">German</option>
+    <option value="fr-FR">French</option>
+    <option value="es-ES">Spanish</option>
+    <option value="it-IT">Italian</option>
+</select>
+
+<br><br>
+
+<button onclick="start()">🎤 Speak</button>
+
+<div class="box">
+    <b>Text heard / sent:</b>
+    <p id="heard"></p>
+</div>
+
+<div class="box">
+    <b>LLM response:</b>
+    <p id="response"></p>
+</div>
+
+<audio id="player" controls></audio>
+
+<script>
+async function start() {
+    const language = document.getElementById("language").value;
+    const text = prompt("Type text (mic version later)");
+
+    const res = await fetch("/talk", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ language, text })
+    });
+
+    const data = await res.json();
+
+    document.getElementById("heard").innerText = data.heard_text;
+    document.getElementById("response").innerText = data.response_text;
+    document.getElementById("player").src = data.audio;
+}
+</script>
+
+</body>
+</html>
