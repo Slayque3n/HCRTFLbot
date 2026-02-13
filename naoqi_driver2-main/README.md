@@ -28,6 +28,7 @@ and/or [`nao_meshes`](https://github.com/ros-naoqi/nao_meshes2) can be useful to
 On Ubuntu, install them using:
 
 ```sh
+source /opt/ros/humble/setup.bash 
 sudo apt-get install ros-$ROS_DISTRO-naoqi-libqi ros-$ROS_DISTRO-naoqi-libqicore ros-$ROS_DISTRO-naoqi-bridge-msgs ros-$ROS_DISTRO-pepper-meshes ros-$ROS_DISTRO-nao-meshes
 ```
 
