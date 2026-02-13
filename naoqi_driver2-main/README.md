@@ -57,7 +57,7 @@ MAKEFLAGS=-j1 colcon build --parallel-workers 1 --symlink-install
 > You can skip them by building with these arguments:
 >
 > ```sh
-> colcon build --packages-skip nao_meshes pepper_meshes
+> MAKEFLAGS=-j1 colcon build --parallel-workers 1 --symlink-install --packages-skip nao_meshes pepper_meshes
 > ```
 
 #### License of the meshes
