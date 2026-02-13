@@ -28,7 +28,7 @@ and/or [`nao_meshes`](https://github.com/ros-naoqi/nao_meshes2) can be useful to
 On Ubuntu, install them using:
 
 ```sh
-sudo apt-get install ros-<distro>-naoqi-libqi ros-<distro>-naoqi-libqicore ros-<distro>-naoqi-bridge-msgs ros-<distro>-pepper-meshes ros-<distro>-nao-meshes
+sudo apt-get install ros-$ROS_DISTRO-naoqi-libqi ros-$ROS_DISTRO-naoqi-libqicore ros-$ROS_DISTRO-naoqi-bridge-msgs ros-$ROS_DISTRO-pepper-meshes ros-$ROS_DISTRO-nao-meshes
 ```
 
 ### Installing from source
@@ -40,7 +40,7 @@ cd <ws>/src
 git clone https://github.com/ros-naoqi/naoqi_driver2.git
 vcs import < naoqi_driver2/dependencies.repos
 cd <ws>
-rosdep install --from-paths src --ignore-src --rosdistro <distro> -y
+rosdep install --from-paths src --ignore-src --rosdistro $ROS_DISTRO -y
 ```
 
 > To install vcs: `sudo apt-get install python3-vcstool`
