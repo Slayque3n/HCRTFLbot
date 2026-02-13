@@ -49,7 +49,6 @@ Then build the workspace:
 
 ```sh
 cd <ws>
-#colcon build --symlink-install
 MAKEFLAGS=-j1 colcon build --parallel-workers 1 --symlink-install
 ```
 
