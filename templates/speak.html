@@ -1,26 +1,148 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Speak</title>
+    <title>{{ ui.speak }}</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #f8bbd0, #fce4ec);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: #ffffff;
+            width: 600px;
+            max-width: 92%;
+            padding: 45px 50px;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+        }
+
+        h2 {
+            margin-top: 0;
+            text-align: center;
+            font-size: 26px;
+            color: #c2185b;
+        }
+
+        .language {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 16px;
+            color: #555;
+        }
+
+        form {
+            text-align: center;
+            margin-bottom: 35px;
+        }
+
+        button {
+            background: #ec407a;
+            color: white;
+            font-size: 16px;
+            padding: 14px 30px;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+            box-shadow: 0 8px 20px rgba(236, 64, 122, 0.3);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 25px rgba(236, 64, 122, 0.4);
+            background: #d81b60;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        hr {
+            border: none;
+            height: 1px;
+            background: #f8bbd0;
+            margin: 30px 0;
+        }
+
+        .section {
+            background: #fce4ec;
+            padding: 18px 20px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        .section b {
+            color: #ad1457;
+        }
+
+        .empty {
+            color: #999;
+            font-style: italic;
+        }
+
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            text-decoration: none;
+            color: #c2185b;
+            font-weight: 500;
+            transition: opacity 0.2s ease;
+        }
+
+        .back-link:hover {
+            opacity: 0.7;
+        }
+    </style>
 </head>
 <body>
 
-<h2>Speak page</h2>
+<div class="container">
 
-<p><b>Language:</b> {{ language }}</p>
+    <h2>{{ ui.speak }}</h2>
 
-<form method="POST">
-    <button type="submit">🎤 Speak</button>
-</form>
+    <div class="language">
+        <b>{{ ui.language }}:</b> {{ language }}
+    </div>
 
-<hr>
+    <form method="POST">
+        <button type="submit">{{ ui.speak }}</button>
+    </form>
 
-<p><b>Text heard:</b> {{ heard }}</p>
-<p><b>LLM response:</b> {{ response }}</p>
+    <hr>
 
-<br>
+    <div class="section">
+        <b>{{ ui.text_heard }}:</b><br>
+        {% if heard %}
+            {{ heard }}
+        {% else %}
+            <span class="empty">—</span>
+        {% endif %}
+    </div>
 
-<a href="{{ url_for('index') }}">← Change language</a>
+    <div class="section">
+        <b>{{ ui.llm_response }}:</b><br>
+        {% if response %}
+            {{ response }}
+        {% else %}
+            <span class="empty">—</span>
+        {% endif %}
+    </div>
+
+    <a class="back-link" href="{{ url_for('index') }}">
+        ← {{ ui.change_language }}
+    </a>
+
+</div>
 
 </body>
 </html>
