@@ -3,34 +3,99 @@
 <head>
     <title>Select Language</title>
     <style>
-        .flag { width: 48px; border: 2px solid transparent; }
-        button { background: none; border: none; cursor: pointer; }
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #f8bbd0, #fce4ec);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background: #ffffff;
+            padding: 50px 60px;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+            text-align: center;
+        }
+
+        h2 {
+            margin-bottom: 35px;
+            font-size: 28px;
+            font-weight: 600;
+            color: #c2185b;
+        }
+
+        form {
+            display: grid;
+            grid-template-columns: repeat(3, 140px);
+            gap: 30px;
+            justify-content: center;
+        }
+
+        button {
+            background: transparent;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            border-radius: 20px;
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .flag {
+            width: 130px;
+            height: auto;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            transition: box-shadow 0.25s ease;
+        }
+
+        button:hover {
+            transform: scale(1.08);
+        }
+
+        button:hover .flag {
+            box-shadow: 0 15px 35px rgba(194, 24, 91, 0.35);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
     </style>
 </head>
 <body>
 
-<h2>Select a language</h2>
+<div class="container">
+    <h2>{{ ui.select_language }}</h2>
 
-<form method="POST">
-    <button name="language" value="en-US">
-        <img src="{{ url_for('static', filename='flags/en.png') }}" class="flag">
-    </button>
-    <button name="language" value="ru-RU">
-        <img src="{{ url_for('static', filename='flags/ru.png') }}" class="flag">
-    </button>
-    <button name="language" value="de-DE">
-        <img src="{{ url_for('static', filename='flags/de.png') }}" class="flag">
-    </button>
-    <button name="language" value="fr-FR">
-        <img src="{{ url_for('static', filename='flags/fr.png') }}" class="flag">
-    </button>
-    <button name="language" value="es-ES">
-        <img src="{{ url_for('static', filename='flags/es.png') }}" class="flag">
-    </button>
-    <button name="language" value="it-IT">
-        <img src="{{ url_for('static', filename='flags/it.png') }}" class="flag">
-    </button>
-</form>
+    <form method="POST">
+        <button name="language" value="en-US">
+            <img src="{{ url_for('static', filename='flags/en.png') }}" class="flag">
+        </button>
+
+        <button name="language" value="ru-RU">
+            <img src="{{ url_for('static', filename='flags/ru.png') }}" class="flag">
+        </button>
+
+        <button name="language" value="de-DE">
+            <img src="{{ url_for('static', filename='flags/de.png') }}" class="flag">
+        </button>
+
+        <button name="language" value="fr-FR">
+            <img src="{{ url_for('static', filename='flags/fr.png') }}" class="flag">
+        </button>
+
+        <button name="language" value="es-ES">
+            <img src="{{ url_for('static', filename='flags/es.png') }}" class="flag">
+        </button>
+
+        <button name="language" value="it-IT">
+            <img src="{{ url_for('static', filename='flags/it.png') }}" class="flag">
+        </button>
+    </form>
+</div>
 
 </body>
 </html>
