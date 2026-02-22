@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>{{ ui.speak }}</title>
 
@@ -32,14 +33,13 @@
 
         .language {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
             font-size: 16px;
             color: #555;
         }
 
         form {
             text-align: center;
-            margin-bottom: 35px;
         }
 
         button {
@@ -62,6 +62,48 @@
 
         button:active {
             transform: scale(0.98);
+        }
+
+        button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-top: 18px;
+            text-align: center;
+            font-weight: 500;
+            color: #c2185b;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .status-indicator {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #ec407a;
+            margin: 0 auto 8px auto;
+            animation: pulse 1.2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(0.9);
+                opacity: 0.7;
+            }
+
+            50% {
+                transform: scale(1.4);
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(0.9);
+                opacity: 0.7;
+            }
         }
 
         hr {
@@ -104,45 +146,87 @@
         }
     </style>
 </head>
+
 <body>
 
-<div class="container">
+    <div class="container">
 
-    <h2>{{ ui.speak }}</h2>
+        <h2>{{ ui.speak }}</h2>
 
-    <div class="language">
-        <b>{{ ui.language }}:</b> {{ language }}
-    </div>
+        <div class="language">
+            <b>{{ ui.language }}:</b> {{ language }}
+        </div>
 
-    <form method="POST">
-        <button type="submit">{{ ui.speak }}</button>
-    </form>
+        <form method="POST" onsubmit="startProcess()">
+            <button id="speakButton" type="submit">
+                <span id="buttonText">{{ ui.speak }}</span>
+            </button>
+        </form>
 
-    <hr>
+        <div id="statusContainer" class="status hidden">
+            <div class="status-indicator"></div>
+            <span id="statusText">Listening...</span>
+        </div>
 
-    <div class="section">
-        <b>{{ ui.text_heard }}:</b><br>
-        {% if heard %}
+        <hr>
+
+        <div class="section">
+            <b>{{ ui.text_heard }}:</b><br>
+            {% if heard %}
             {{ heard }}
-        {% else %}
+            {% else %}
             <span class="empty">—</span>
-        {% endif %}
-    </div>
+            {% endif %}
+        </div>
 
-    <div class="section">
-        <b>{{ ui.llm_response }}:</b><br>
-        {% if response %}
+        <div class="section">
+            <b>{{ ui.llm_response }}:</b><br>
+            {% if response %}
             {{ response }}
-        {% else %}
+            {% else %}
             <span class="empty">—</span>
-        {% endif %}
+            {% endif %}
+        </div>
+
+        <a class="back-link" href="{{ url_for('index') }}">
+            ← {{ ui.change_language }}
+        </a>
+
     </div>
 
-    <a class="back-link" href="{{ url_for('index') }}">
-        ← {{ ui.change_language }}
-    </a>
+    <script>
+        function startProcess() {
+            const button = document.getElementById("speakButton");
+            const text = document.getElementById("buttonText");
+            const status = document.getElementById("statusContainer");
+            const statusText = document.getElementById("statusText");
 
-</div>
+            button.disabled = true;
+            text.innerText = "Listening...";
+            status.classList.remove("hidden");
+
+            setTimeout(() => {
+                statusText.innerText = "Thinking...";
+            }, 1500);
+        }
+
+        window.addEventListener("DOMContentLoaded", function () {
+            const responseExists = "{{ response|length }}" > 0;
+
+            if (responseExists) {
+                const status = document.getElementById("statusContainer");
+                const statusText = document.getElementById("statusText");
+
+                status.classList.remove("hidden");
+                statusText.innerText = "Speaking...";
+
+                setTimeout(() => {
+                    status.classList.add("hidden");
+                }, 2000);
+            }
+        });
+    </script>
 
 </body>
+
 </html>
