@@ -1,6 +1,8 @@
 from gtts import gTTS
 import os
 import speech_recognition as sr
+import usb.core
+from tuning import Tuning
 
 TTS_LANG_MAP = {
     "en-US": "en",
@@ -46,27 +48,36 @@ def text_to_speech(text, language, filename="output.mp3", slow=False):
 
 
 def speech_to_text(language):
+    dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    RESPEAKER_INDEX = 1 
+
     r = sr.Recognizer()
-    r.pause_threshold = 1  # Wait 2 seconds of silence before considering phrase complete
+    r.pause_threshold = 2  # Wait 2 seconds of silence before considering phrase complete
+    mic = sr.Microphone(device_index=RESPEAKER_INDEX, sample_rate=16000)
 
     while True:
-        try:
-            with sr.Microphone() as source:
-                print("Listening...")
-                r.adjust_for_ambient_noise(source, duration=0.2)
-                audio = r.listen(source,  timeout=90, phrase_time_limit=40)
+        try:    
+            with mic as source:
+                print("--- ReSpeaker is Calibrating for Background Noise ---")
+                r.adjust_for_ambient_noise(source, duration=2)
+                
+                print("--- Ready! Say something ---")
+                audio = r.listen(source)
+                if dev:
+                    Mic_tuning = Tuning(dev)
 
-            text = r.recognize_google(audio, language=language).lower()
-            print("You said:", text)
-            
+            print("Recognizing...")
+            text = r.recognize_google(audio)
+            print(f"You said: {text}")
+            print (f"Direction of audio: {Mic_tuning.direction}")
 
             if "exit" in text:
                 print("Exiting program...")
                 return None
             return text
-
+        
         except sr.RequestError as e:
-            print(f"Could not request results; {e}")
+                print(f"Could not request results; {e}")
 
         except sr.UnknownValueError:
             print("Could not understand audio")
@@ -74,7 +85,6 @@ def speech_to_text(language):
         except KeyboardInterrupt:
             print("Program terminated by user")
             break
-
 
 def findkeywords(heardspeech):
     # Initialize variables
