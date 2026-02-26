@@ -31,7 +31,8 @@ def text_to_speech(text, language,filename="output.mp3", slow=False):
     tts_lang = TTS_LANG_MAP.get(language, "en")
     tts = gTTS(text=text, lang=tts_lang, slow=slow)
     tts.save(filename)
-    os.system(f"start {filename}")  # Windows only
+    if(os.name == nt):
+        os.system(f"start {filename}")  # Windows only
 
 def text_to_speech(text, language, filename="output.mp3", slow=False):
     """
@@ -49,14 +50,14 @@ def text_to_speech(text, language, filename="output.mp3", slow=False):
 
 def speech_to_text(language):
     dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
-    RESPEAKER_INDEX = 1 
+    RESPEAKER_INDEX = 0
 
     r = sr.Recognizer()
     r.pause_threshold = 2  # Wait 2 seconds of silence before considering phrase complete
     mic = sr.Microphone(device_index=RESPEAKER_INDEX, sample_rate=16000)
 
     while True:
-        try:    
+        try:
             with mic as source:
                 print("--- ReSpeaker is Calibrating for Background Noise ---")
                 r.adjust_for_ambient_noise(source, duration=2)
