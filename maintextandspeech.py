@@ -87,6 +87,14 @@ def speech_to_text(language):
             print("Program terminated by user")
             break
 
+def get_next_letter():
+    """
+    Returns the next fingerspelled letter (A-Z) detected, or None if no letter yet.
+    Replace this stub with the real camera/gesture recognition logic.
+    """
+    return None
+
+
 def findkeywords(heardspeech):
     # Initialize variables
     found_line = None
