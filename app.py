@@ -102,5 +102,18 @@ def speak():
         ui=ui
     )
 
+@app.route("/bsl")
+def bsl():
+    return render_template("bsl.html")
+
+@app.route("/bsl/result", methods=["POST"])
+def bsl_result():
+    station = request.form.get("station", "").strip()
+    response = ask_llm(
+        "How do I get to " + station +
+        " station via the London Underground? Short answer, tell me the direction and line, no *."
+    )
+    return render_template("bsl_result.html", station=station, response=response)
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True)

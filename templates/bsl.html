@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BSL Mode – Choose a Station</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #f8bbd0, #fce4ec);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 40px 20px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            background: #ffffff;
+            padding: 45px 50px;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+            text-align: center;
+            max-width: 700px;
+            width: 100%;
+        }
+
+        h2 {
+            margin-top: 0;
+            margin-bottom: 8px;
+            font-size: 28px;
+            font-weight: 700;
+            color: #c2185b;
+        }
+
+        .subtitle {
+            color: #555;
+            margin-bottom: 35px;
+            font-size: 15px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+
+        .station-btn {
+            background: #ec407a;
+            color: white;
+            border: none;
+            border-radius: 16px;
+            padding: 22px 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 6px 18px rgba(236, 64, 122, 0.25);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+            line-height: 1.3;
+        }
+
+        .station-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 24px rgba(236, 64, 122, 0.4);
+            background: #d81b60;
+        }
+
+        .station-btn:active {
+            transform: scale(0.97);
+        }
+
+        .station-btn .number {
+            display: block;
+            font-size: 22px;
+            margin-bottom: 6px;
+        }
+
+        .custom-section {
+            background: #fce4ec;
+            border-radius: 16px;
+            padding: 22px 24px;
+            margin-top: 10px;
+        }
+
+        .custom-section label {
+            display: block;
+            font-weight: 600;
+            color: #c2185b;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+
+        .custom-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .custom-row input {
+            flex: 1;
+            padding: 14px 16px;
+            border: 2px solid #f48fb1;
+            border-radius: 12px;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        .custom-row input:focus {
+            border-color: #c2185b;
+        }
+
+        .custom-row button {
+            padding: 14px 24px;
+            background: #ec407a;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .custom-row button:hover {
+            background: #d81b60;
+            transform: translateY(-2px);
+        }
+
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 28px;
+            text-decoration: none;
+            color: #c2185b;
+            font-weight: 500;
+            transition: opacity 0.2s ease;
+        }
+
+        .back-link:hover {
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🤟 BSL Mode</h2>
+    <p class="subtitle">Select a London Underground station to get directions</p>
+
+    <form method="POST" action="{{ url_for('bsl_result') }}">
+        <div class="grid">
+            <button class="station-btn" type="submit" name="station" value="King's Cross St. Pancras">
+                <span class="number">1</span>King's Cross St. Pancras
+            </button>
+            <button class="station-btn" type="submit" name="station" value="Waterloo">
+                <span class="number">2</span>Waterloo
+            </button>
+            <button class="station-btn" type="submit" name="station" value="Victoria">
+                <span class="number">3</span>Victoria
+            </button>
+            <button class="station-btn" type="submit" name="station" value="Liverpool Street">
+                <span class="number">4</span>Liverpool Street
+            </button>
+            <button class="station-btn" type="submit" name="station" value="London Bridge">
+                <span class="number">5</span>London Bridge
+            </button>
+            <button class="station-btn" type="submit" name="station" value="Paddington">
+                <span class="number">6</span>Paddington
+            </button>
+            <button class="station-btn" type="submit" name="station" value="Bank">
+                <span class="number">7</span>Bank / Monument
+            </button>
+            <button class="station-btn" type="submit" name="station" value="Stratford">
+                <span class="number">8</span>Stratford
+            </button>
+            <button class="station-btn" type="submit" name="station" value="Canary Wharf">
+                <span class="number">9</span>Canary Wharf
+            </button>
+        </div>
+    </form>
+
+    <div class="custom-section">
+        <label>10 – Enter your own station</label>
+        <form method="POST" action="{{ url_for('bsl_result') }}">
+            <div class="custom-row">
+                <input type="text" name="station" placeholder="e.g. Oxford Circus" required>
+                <button type="submit">Go</button>
+            </div>
+        </form>
+    </div>
+
+    <a class="back-link" href="{{ url_for('index') }}">← Back to language select</a>
+</div>
+
+</body>
+</html>
