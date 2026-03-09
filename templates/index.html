@@ -63,6 +63,40 @@
         button:active {
             transform: scale(0.98);
         }
+
+        .bsl-btn {
+            display: inline-block;
+            margin-top: 35px;
+            padding: 16px 40px;
+            background: #ec407a;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            text-decoration: none;
+            box-shadow: 0 8px 24px rgba(236, 64, 122, 0.35);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+            letter-spacing: 0.5px;
+        }
+
+        .bsl-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 14px 30px rgba(236, 64, 122, 0.45);
+            background: #d81b60;
+        }
+
+        .bsl-btn:active {
+            transform: scale(0.97);
+        }
+
+        .divider {
+            margin: 30px 0 0 0;
+            border: none;
+            height: 1px;
+            background: #f8bbd0;
+        }
     </style>
 </head>
 <body>
@@ -95,6 +129,9 @@
             <img src="{{ url_for('static', filename='flags/it.png') }}" class="flag">
         </button>
     </form>
+
+    <hr class="divider">
+    <a href="{{ url_for('bsl') }}" class="bsl-btn">🤟 BSL Mode</a>
 </div>
 
 </body>

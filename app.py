@@ -1,6 +1,6 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 from chatwithai import *
-from maintextandspeech import *
+from maintextandspeech import speech_to_text, text_to_speech, findkeywords, get_next_letter
 
 
 translations = {
@@ -101,6 +101,28 @@ def speak():
         response=response,
         ui=ui
     )
+
+@app.route("/bsl")
+def bsl():
+    return render_template("bsl.html")
+
+@app.route("/bsl/spell")
+def bsl_spell():
+    return render_template("bsl_spell.html")
+
+@app.route("/bsl/spell/letter")
+def bsl_spell_letter():
+    letter = get_next_letter()
+    return jsonify({"letter": letter})
+
+@app.route("/bsl/result", methods=["POST"])
+def bsl_result():
+    station = request.form.get("station", "").strip()
+    response = ask_llm(
+        "How do I get to " + station +
+        " station via the London Underground? Short answer, tell me the direction and line, no *."
+    )
+    return render_template("bsl_result.html", station=station, response=response)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True)
