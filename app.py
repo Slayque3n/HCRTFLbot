@@ -2,6 +2,27 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify
 from chatwithai import *
 from maintextandspeech import speech_to_text, text_to_speech, findkeywords, get_next_letter
 
+import rclpy
+from rclpy.node import Node
+
+from std_msgs.msg import String
+
+global bsl_info
+
+class MinimalSubscriber(Node):
+
+    def __init__(self):
+        super().__init__('minimal_subscriber')
+        self.subscription = self.create_subscription(
+            String,
+            'bsl_data',
+            self.listener_callback,
+            10)
+        self.subscription  # prevent unused variable warning
+
+    def listener_callback(self, msg):
+        #self.get_logger().info('I heard: "%s"' % msg.data)
+        bsl_info = msg.data
 
 translations = {
     "en-US": {
