@@ -4,15 +4,21 @@ from maintextandspeech import speech_to_text, text_to_speech, findkeywords, get_
 
 import rclpy
 from rclpy.node import Node
-
 from std_msgs.msg import String
 
-global bsl_info
+from threading import Thread, Lock
+import atexit
 
-class MinimalSubscriber(Node):
+
+bsl_info = None
+flask_node = None
+msg_lock = Lock()  # for thread-safe access to latest_message
+ros_station_response = None
+
+class FlaskNode(Node):
 
     def __init__(self):
-        super().__init__('minimal_subscriber')
+        super().__init__('flask_node')
         self.subscription = self.create_subscription(
             String,
             'bsl_data',
@@ -21,8 +27,10 @@ class MinimalSubscriber(Node):
         self.subscription  # prevent unused variable warning
 
     def listener_callback(self, msg):
+        global bsl_info
+        with msg_lock:
+            bsl_info = msg.data
         #self.get_logger().info('I heard: "%s"' % msg.data)
-        bsl_info = msg.data
 
 translations = {
     "en-US": {
@@ -77,12 +85,63 @@ translations = {
 
 
 
+def handle_bsl_command(command):
+    global ros_station_response  # needed because we assign to it
+
+    match command:
+        case "One - 1":
+            ros_station_response = "King's Cross St. Pancras"
+        case "Two -2":
+            ros_station_response = "Waterloo"
+        case "Three - 3":
+            ros_station_response = "Victoria"
+        case "Four - 4":
+            ros_station_response = "Liverpool Street"
+        case "Five - 5":
+            ros_station_response = "London Bridge"
+        case "Six - 6":
+            ros_station_response = "Paddington"
+        case "Seven - 7":
+            ros_station_response = "Bank / Monument"
+        case "Eight - 8":
+            ros_station_response = "Stratford"
+        case "Nine - 9":
+            ros_station_response = "Canary Wharf"
+        case "Ten - 10":
+            ros_station_response = None
+        case _:  # default
+            ros_station_response = None
+
+    return ros_station_response
 
 
 
 
 
 app = Flask(__name__)
+
+#ROS Init
+
+def ros_thread_func():
+    global node
+    rclpy.init()
+    flask_node = FlaskNode()
+    rclpy.spin(flask_node)
+
+# Start ROS in a daemon thread so Flask can run in main thread
+ros_thread = Thread(target=ros_thread_func, daemon=True)
+ros_thread.start()
+
+
+#ROS Shutdown Procedure
+
+@atexit.register
+def shutdown_ros():
+    global flask_node
+    if flask_node is not None:
+        flask_node.destroy_node()
+    rclpy.shutdown()
+
 
 @app.route("/", methods=["GET", "POST"])
 @app.route("/", methods=["GET", "POST"])
@@ -125,6 +184,15 @@ def speak():
 
 @app.route("/bsl")
 def bsl():
+    with msg_lock:
+       msg = bsl_info
+
+    handle_bsl_command(msg)
+    print("DEBUG:" + bsl_info)
+    print(ros_station_response)
+    if ros_station_response is not None:
+        return redirect(url_for('bsl_result'))
+
     return render_template("bsl.html")
 
 @app.route("/bsl/spell")
@@ -136,9 +204,12 @@ def bsl_spell_letter():
     letter = get_next_letter()
     return jsonify({"letter": letter})
 
-@app.route("/bsl/result", methods=["POST"])
+@app.route("/bsl/result", methods=["POST","GET"])
 def bsl_result():
-    station = request.form.get("station", "").strip()
+    if ros_station_response is None:
+        station = request.form.get("station", "").strip()
+    else:
+        station = ros_station_response
     response = ask_llm(
         "How do I get to " + station +
         " station via the London Underground? Short answer, tell me the direction and line, no *."
