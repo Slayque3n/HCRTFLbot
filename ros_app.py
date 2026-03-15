@@ -188,8 +188,8 @@ def bsl():
        msg = bsl_info
 
     handle_bsl_command(msg)
-    print("DEBUG:" + bsl_info)
-    print(ros_station_response)
+    #print("DEBUG:" + bsl_info)
+    #print(ros_station_response)
     if ros_station_response is not None:
         return redirect(url_for('bsl_result'))
 
