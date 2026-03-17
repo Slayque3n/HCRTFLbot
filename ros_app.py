@@ -13,24 +13,45 @@ import atexit
 bsl_info = None
 flask_node = None
 msg_lock = Lock()  # for thread-safe access to latest_message
+node_lock = Lock() # for thread-safe access to the flask node
 ros_station_response = None
+platform_info = None
+bsl_redirect = False
+
 
 class FlaskNode(Node):
 
     def __init__(self):
         super().__init__('flask_node')
+        self.platform_publisher_ = self.create_publisher(String, 'platform_topic', 10)
+        self.llm_response_publisher = self.create_publisher(String, 'llm_topic', 10)
         self.subscription = self.create_subscription(
             String,
             'bsl_data',
             self.listener_callback,
             10)
         self.subscription  # prevent unused variable warning
+        timer_period = 0.5  # seconds
+        self.timer = self.create_timer(timer_period, self.timer_callback)
 
     def listener_callback(self, msg):
-        global bsl_info
+        global bsl_info, bsl_redirect
         with msg_lock:
-            bsl_info = msg.data
+            if bsl_redirect:
+                bsl_info = None
+            else:
+                bsl_info = msg.data
         #self.get_logger().info('I heard: "%s"' % msg.data)
+
+    def timer_callback(self):
+        msg = String()
+        with msg_lock:
+            if platform_info is not None:
+                msg.data = platform_info
+
+
+        if msg.data is not None:
+            self.platform_publisher_.publish(msg)
 
 translations = {
     "en-US": {
@@ -86,31 +107,32 @@ translations = {
 
 
 def handle_bsl_command(command):
-    global ros_station_response  # needed because we assign to it
+    global ros_station_response  
 
-    match command:
-        case "One - 1":
-            ros_station_response = "King's Cross St. Pancras"
-        case "Two -2":
-            ros_station_response = "Waterloo"
-        case "Three - 3":
-            ros_station_response = "Victoria"
-        case "Four - 4":
-            ros_station_response = "Liverpool Street"
-        case "Five - 5":
-            ros_station_response = "London Bridge"
-        case "Six - 6":
-            ros_station_response = "Paddington"
-        case "Seven - 7":
-            ros_station_response = "Bank / Monument"
-        case "Eight - 8":
-            ros_station_response = "Stratford"
-        case "Nine - 9":
-            ros_station_response = "Canary Wharf"
-        case "Ten - 10":
-            ros_station_response = None
-        case _:  # default
-            ros_station_response = None
+    with msg_lock:
+        match command:
+            case "BSL (1-Hand): One - 1":
+                ros_station_response = "King's Cross St. Pancras"
+            case "BSL (1-Hand): Two - 2":
+                ros_station_response = "Waterloo"
+            case "BSL (1-Hand): Three - 3":
+                ros_station_response = "Victoria"
+            case "BSL (1-Hand): Four - 4":
+                ros_station_response = "Liverpool Street"
+            case "BSL (1-Hand): Five - 5":
+                ros_station_response = "London Bridge"
+            case "BSL (1-Hand): Six - 6":
+                ros_station_response = "Paddington"
+            case "BSL (1-Hand): Seven - 7":
+                ros_station_response = "Bank / Monument"
+            case "BSL (1-Hand): Eight - 8":
+                ros_station_response = "Stratford"
+            case "BSL (1-Hand): Nine - 9":
+                ros_station_response = "Canary Wharf"
+            case "BSL (2-Hand): Ten - 10":
+                ros_station_response = None
+            case _:  # default
+                ros_station_response = None
 
     return ros_station_response
 
@@ -123,7 +145,7 @@ app = Flask(__name__)
 #ROS Init
 
 def ros_thread_func():
-    global node
+    global flask_node
     rclpy.init()
     flask_node = FlaskNode()
     rclpy.spin(flask_node)
@@ -157,6 +179,7 @@ def index():
 @app.route("/speak", methods=["GET", "POST"])
 @app.route("/speak", methods=["GET", "POST"])
 def speak():
+    global flask_node
     language = request.args.get("language", "en-US")
     heard = ""
     response = ""
@@ -166,11 +189,16 @@ def speak():
 
         response = ask_llm(
             heard +
-            " via the underground, short answer, tell me direction and line, no *, answer in " +
+            " from South Kensington via the underground. You are a station guide and you need to tell me which platform I need to go to. Keep it concise. Use this format: From South Kensington, head to the **Piccadilly Line platforms**. Take a train from the **Northbound platform** (direction Cockfosters) directly to King's Cross St. Pancras." +
             language
         )
         findkeywords(response)
-        text_to_speech(response, language)
+        #text_to_speech(response, language)
+        ros_response = String()
+        ros_response.data = response
+
+        #with node_lock:
+        flask_node.llm_response_publisher.publish(ros_response)
 
     ui = translations.get(language, translations["en-US"])
 
@@ -184,16 +212,22 @@ def speak():
 
 @app.route("/bsl")
 def bsl():
-    with msg_lock:
-       msg = bsl_info
-
-    handle_bsl_command(msg)
-    #print("DEBUG:" + bsl_info)
-    #print(ros_station_response)
-    if ros_station_response is not None:
-        return redirect(url_for('bsl_result'))
-
     return render_template("bsl.html")
+
+@app.route("/bsl/check")
+def bsl_check():
+    global bsl_info, bsl_redirect
+    with msg_lock:
+        msg = bsl_info
+
+    valid = handle_bsl_command(msg)
+
+    if valid is not None:
+        with msg_lock:
+            bsl_redirect = True
+        return jsonify({"valid": True})
+
+    return jsonify({"valid": False})
 
 @app.route("/bsl/spell")
 def bsl_spell():
@@ -206,14 +240,23 @@ def bsl_spell_letter():
 
 @app.route("/bsl/result", methods=["POST","GET"])
 def bsl_result():
+    global bsl_redirect
+
     if ros_station_response is None:
         station = request.form.get("station", "").strip()
     else:
         station = ros_station_response
     response = ask_llm(
         "How do I get to " + station +
-        " station via the London Underground? Short answer, tell me the direction and line, no *."
+        "from South Kensington via the underground. You are a station guide and you need to tell me which platform I need to go to. Keep it concise. Use this format: From South Kensington, head to the **Piccadilly Line platforms**. Take a train from the **Northbound platform** (direction Cockfosters) directly to King's Cross St. Pancras."
     )
+
+    ros_response = String()
+    ros_response.data = response
+
+    flask_node.llm_response_publisher.publish(ros_response)
+    with msg_lock:
+        bsl_redirect = False
     return render_template("bsl_result.html", station=station, response=response)
 
 if __name__ == "__main__":
