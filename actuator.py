@@ -11,7 +11,7 @@ from rclpy.serialization import deserialize_message
 
 import rosbag2_py
 
-from std_msgs.msg import String
+from std_msgs.msg import String, Bool
 from sensor_msgs.msg import JointState
 from naoqi_bridge_msgs.msg import JointAnglesWithSpeed
 
@@ -20,71 +20,118 @@ class LlmGestureSpeechNode(Node):
     def __init__(self):
         super().__init__('llm_gesture_speech_node')
 
-        # Topics
-        self.llm_topic = '/llm_response'
+        # --- Topics ---
+        self.llm_topic = '/llm_topic'
         self.speech_topic = '/speech'
         self.angles_topic = '/joint_angles'
         self.stiffness_topic = '/joint_stiffness'
+        self.platform_topic = '/platform_name' 
+        self.status_topic = '/robot_at_goal' 
 
-        # ROS interfaces
+        # --- ROS interfaces ---
         self.subscription = self.create_subscription(
             String,
             self.llm_topic,
             self.llm_callback,
             10
         )
+        
+        self.status_sub = self.create_subscription(
+            Bool,
+            self.status_topic,
+            self.status_callback,
+            10
+        )
+
         self.speech_pub_ = self.create_publisher(String, self.speech_topic, 10)
         self.angles_pub_ = self.create_publisher(JointAnglesWithSpeed, self.angles_topic, 10)
         self.stiffness_pub_ = self.create_publisher(JointState, self.stiffness_topic, 10)
+        self.platform_pub_ = self.create_publisher(String, self.platform_topic, 10)
 
-        # Playback config
+        # --- Coordination State ---
+        self.robot_ready_event = threading.Event()
+        # Initialize as cleared (locked)
+        self.robot_ready_event.clear() 
+        
+        self.command_queue = queue.Queue()
+
+        # --- Playback config ---
         self.playback_speed = 1.0
         self.trim_threshold = 0.02
 
-        # Replace these with your real keyword -> bag mappings
+        # Gesture Mappings
         self.gesture_map = {
-            "hello": "bag/wave",
-            "didn't hear": "bag_files/didnt_hear",
-            "sorry": "bag_files/sorry",
-            "left": "bag_files/left",
-            "right": "bag_files/right",
-            "northbound": "bag_files/northbound",
-            "southbound": "bag_files/southbound",
-            "eastbound": "bag_files/eastbound",
-            "westbound": "bag_files/westbound",
-            "victoria": "bag_files/victoria",
-            "central": "bag_files/central",
-            "northern": "bag_files/northern",
-            "piccadilly": "bag_files/piccadilly",
-            "jubilee": "bag_files/jubilee",
-            "district": "bag_files/district",
-            "circle": "bag_files/circle",
-            "bakerloo": "bag_files/bakerloo",
-            "hammersmith": "bag_files/hammersmith",
-            "metropolitan": "bag_files/metropolitan",
+            "please": "bag/wave",
+            "didn't hear": "bag/didnt_hear",
+            "sorry": "bag/didnt_hear",
+            "left": "bag/point_left",
+            "right": "bag/point_right",
+            "thinking": "bag/thinking",
+            "northbound": "bag/dileft",
+            "southbound": "bag/dileft",
+            "eastbound": "bag/diright",
+            "westbound": "bag/dileft",
         }
 
-        self.command_queue = queue.Queue()
+        # Start the background worker thread
         self.worker = threading.Thread(target=self.worker_loop, daemon=True)
         self.worker.start()
 
-        self.get_logger().info('Listening on /llm_response')
+        self.get_logger().info('DEBUG: LlmGestureSpeechNode initialized. Sync event is cleared.')
+
+    def status_callback(self, msg: Bool):
+        """ Receives signal from Nav2 script when robot arrives at platform """
+        if msg.data is True:
+            self.get_logger().info(f'DEBUG: Received SUCCESS signal on {self.status_topic}. Setting event.')
+            self.robot_ready_event.set()
+        else:
+            self.get_logger().info('DEBUG: Received FALSE signal from Nav2. Still waiting...')
 
     def llm_callback(self, msg: String):
         text = msg.data.strip()
         if not text:
             return
 
-        self.get_logger().info(f'Received: "{text}"')
+        self.get_logger().info(f'Received LLM command: "{text}"')
         self.command_queue.put(text)
 
     def worker_loop(self):
-        while True:
+        while rclpy.ok():
             text = self.command_queue.get()
+            # Reset event at the start of every new command to block speech
+            self.robot_ready_event.clear() 
+            
             try:
+                # 1. Determine if we need to move
+                platform = self.find_platform_in_text(text)
                 bag_path = self.find_matching_bag(text)
 
-                # Speak and gesture in parallel
+                if platform:
+                    self.get_logger().info(f'DEBUG: Platform identified: {platform}. Triggering Nav2.')
+                    
+                    # Send platform name to the Nav2 script
+                    plat_msg = String()
+                    plat_msg.data = platform
+                    self.platform_pub_.publish(plat_msg)
+
+                    # WAIT for the status_callback to call .set()
+                    self.get_logger().info(f'DEBUG: [WAITING] Script is now paused until {self.status_topic} becomes True')
+                    
+                    # Wait with a timeout to prevent infinite blocking
+                    arrived = self.robot_ready_event.wait(timeout=120.0)
+                    
+                    if arrived:
+                        self.get_logger().info('DEBUG: [RESUMING] Nav2 success received. Proceeding to speech.')
+                    else:
+                        self.get_logger().error('DEBUG: [TIMEOUT] Robot did not signal arrival within 60s.')
+                        # Decide here if you want to speak anyway or 'continue' to skip
+                
+                else:
+                    self.get_logger().info('DEBUG: No platform found in text. Skipping movement wait.')
+
+                # 2. Start speech and gesture
+                self.get_logger().info('Executing speech and gesture.')
+                
                 speech_thread = threading.Thread(
                     target=self.say_text,
                     args=(text,),
@@ -94,20 +141,57 @@ class LlmGestureSpeechNode(Node):
 
                 if bag_path:
                     self.play_gesture_bag_once(bag_path)
-                else:
-                    self.get_logger().warn(f'No gesture mapping found for: "{text}"')
 
                 speech_thread.join(timeout=0.1)
+
             except Exception as e:
                 self.get_logger().error(f'Worker error: {e}')
             finally:
                 self.command_queue.task_done()
 
+    def find_platform_in_text(self, text: str):
+        """
+        Identifies the specific platform at South Kensington.
+        Returns strings like: 'district_eastbound', 'piccadilly_northbound', etc.
+        """
+        normalized = text.lower()
+
+        # 1. Define the lines and directions relevant to South Ken
+        lines = ["district", "circle", "piccadilly"]
+        directions = ["eastbound", "westbound", "northbound", "southbound"]
+
+        # 2. Find which line is mentioned first
+        found_line = None
+        line_idx = float('inf')
+        for line in lines:
+            idx = normalized.find(line)
+            if idx != -1 and idx < line_idx:
+                line_idx = idx
+                found_line = line
+
+        if not found_line:
+            return None
+
+        # 3. Look for the direction immediately following that line
+        # We look at the text after the line name was found
+        remaining_text = normalized[line_idx:]
+        found_direction = None
+        for direction in directions:
+            if direction in remaining_text:
+                found_direction = direction
+                break # Take the first direction found after the line name
+
+        # 4. Construct the specific platform name
+        if found_line and found_direction:
+            return f"{found_line}_{found_direction}"
+
+        return found_line # Fallback to just the line name if no direction is found
+
     def say_text(self, text: str):
         msg = String()
         msg.data = text
         self.speech_pub_.publish(msg)
-        self.get_logger().info(f'Published speech to /speech: "{text}"')
+        self.get_logger().info(f'Speech published: "{text}"')
 
     def normalize_text(self, text: str) -> str:
         text = text.lower().strip()
@@ -117,19 +201,15 @@ class LlmGestureSpeechNode(Node):
 
     def find_matching_bag(self, text: str):
         normalized = self.normalize_text(text)
-
-        # longest phrase first
         for phrase in sorted(self.gesture_map.keys(), key=len, reverse=True):
             if phrase in normalized:
                 bag_path = self.gesture_map[phrase]
                 self.get_logger().info(f'Matched "{phrase}" -> {bag_path}')
                 return bag_path
-
         return None
 
     def load_bag(self, bag_dir_path):
         trajectory = []
-
         reader = rosbag2_py.SequentialReader()
         storage_options = rosbag2_py.StorageOptions(
             uri=bag_dir_path,
@@ -141,18 +221,15 @@ class LlmGestureSpeechNode(Node):
         )
 
         reader.open(storage_options, converter_options)
-
         t0 = None
         message_count = 0
 
         while reader.has_next():
             topic, data, t_ns = reader.read_next()
-
             if topic != '/joint_states':
                 continue
 
             msg = deserialize_message(data, JointState)
-
             if not msg.name or not msg.position:
                 continue
 
@@ -176,7 +253,6 @@ class LlmGestureSpeechNode(Node):
 
         start_idx = 0
         end_idx = len(trajectory) - 1
-
         first_positions = trajectory[0]['positions']
         last_positions = trajectory[-1]['positions']
 
@@ -194,16 +270,14 @@ class LlmGestureSpeechNode(Node):
                 break
 
         if start_idx >= end_idx:
-            self.get_logger().warn('Trim threshold too high or no movement detected. Using full bag.')
             return trajectory
 
         trimmed = trajectory[start_idx:end_idx + 1]
         offset = trimmed[0]['time']
-
         for step in trimmed:
             step['time'] -= offset
 
-        self.get_logger().info(f'Trimmed trajectory to {len(trimmed)} frames')
+        self.get_logger().info(f'Trimmed to {len(trimmed)} frames')
         return trimmed
 
     def set_stiffness(self, joint_names, target_stiffness=1.0):
@@ -217,12 +291,11 @@ class LlmGestureSpeechNode(Node):
 
     def play_gesture_bag_once(self, bag_dir_path):
         if not os.path.exists(bag_dir_path):
-            self.get_logger().error(f'Bag path does not exist: {bag_dir_path}')
+            self.get_logger().error(f'Path missing: {bag_dir_path}')
             return
 
         trajectory = self.load_bag(bag_dir_path)
         if not trajectory:
-            self.get_logger().warn(f'No trajectory found in bag: {bag_dir_path}')
             return
 
         trajectory = self.trim_trajectory(trajectory)
@@ -231,13 +304,11 @@ class LlmGestureSpeechNode(Node):
         msg = JointAnglesWithSpeed()
         msg.speed = 0.5
         msg.relative = 0
-
         start_time = time.time()
 
         for step in trajectory:
             target_time = start_time + (step['time'] / self.playback_speed)
             now = time.time()
-
             if target_time > now:
                 time.sleep(target_time - now)
 
@@ -245,20 +316,19 @@ class LlmGestureSpeechNode(Node):
             msg.joint_angles = step['positions']
             self.angles_pub_.publish(msg)
 
-        self.get_logger().info(f'Finished playback for {bag_dir_path}')
+        self.get_logger().info(f'Finished gesture for {bag_dir_path}')
 
 
 def main(args=None):
     rclpy.init(args=args)
     node = LlmGestureSpeechNode()
-
     executor = MultiThreadedExecutor()
     executor.add_node(node)
 
     try:
         executor.spin()
     except KeyboardInterrupt:
-        node.get_logger().info('Shutting down node.')
+        node.get_logger().info('KeyboardInterrupt: Shutting down.')
     finally:
         node.destroy_node()
         rclpy.shutdown()
