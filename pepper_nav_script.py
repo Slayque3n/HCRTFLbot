@@ -51,6 +51,12 @@ class PepperPlatformNavNav2(Node):
         self.pose_topic = self.get_parameter('pose_topic').value
         self.default_frame_id = self.get_parameter('default_frame_id').value
         self.navigate_action_name = self.get_parameter('navigate_action_name').value
+        
+        self.declare_parameter(
+            'locations_file',
+            '/mnt/c/Users/dylan/Documents/imperial/year4/Human-Centred Robotics/HCRTFLbot/locations.json'
+        )
+        self.locations_file = self.get_parameter('locations_file').value
 
         self.locations: Dict[str, Dict[str, float]] = {}
         self.current_pose: Optional[PoseWithCovarianceStamped] = None
@@ -73,32 +79,26 @@ class PepperPlatformNavNav2(Node):
         self.publish_status('idle', f'Loaded {len(self.locations)} locations.', None)
 
     def _load_locations(self):
-        self.locations = {
-            "district_eastbound": {
-                "x": 1.25,
-                "y": 0.50,
-                "yaw": 1.57,
-                "frame_id": "map",
-            },
-            "piccadilly_southbound": {
-                "x": -2.10,
-                "y": 3.45,
-                "yaw": 0.0,
-                "frame_id": "map",
-            },
-            "district_westbound": {
-                "x": 1.25,
-                "y": 0.50,
-                "yaw": 1.57,
-                "frame_id": "map",
-            },
-            "piccadilly_northbound": {
-                "x": -2.10,
-                "y": 3.45,
-                "yaw": 0.0,
-                "frame_id": "map",
-            },
-        }
+        try:
+            with open(self.locations_file, 'r') as f:
+                self.locations = json.load(f)
+            self.get_logger().info(f"Loaded locations from {self.locations_file}")
+        except Exception:
+            self.get_logger().warn("No saved locations file found. Using defaults.")
+            self.locations = {
+                "district_eastbound": {
+                    "x": 1.25,
+                    "y": 0.50,
+                    "yaw": 1.57,
+                    "frame_id": "map",
+                },
+                "piccadilly_southbound": {
+                    "x": -2.10,
+                    "y": 3.45,
+                    "yaw": 0.0,
+                    "frame_id": "map",
+                },
+            }
 
     def publish_status(self, state: str, message: str, active_goal: Optional[str]):
         msg = String()
@@ -198,8 +198,12 @@ class PepperPlatformNavNav2(Node):
             self.publish_status('failed', f'Navigation failed {status}', name)
 
     def _save_locations(self):
-        self.get_logger().info("Locations are hardcoded; skipping file save.")
-
+        try:
+            with open(self.locations_file, 'w') as f:
+                json.dump(self.locations, f, indent=2)
+            self.get_logger().info(f"Saved locations to {self.locations_file}")
+        except Exception as e:
+            self.get_logger().error(f"Failed to save locations: {e}")
 
 def main(args=None):
     rclpy.init(args=args)
