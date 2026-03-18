@@ -10,6 +10,7 @@ from rclpy.executors import MultiThreadedExecutor
 from rclpy.serialization import deserialize_message
 
 import rosbag2_py
+import json
 
 from std_msgs.msg import String, Bool
 from sensor_msgs.msg import JointState
@@ -26,8 +27,15 @@ class LlmGestureSpeechNode(Node):
         self.angles_topic = '/joint_angles'
         self.stiffness_topic = '/joint_stiffness'
         self.platform_topic = '/platform_name' 
-        self.status_topic = '/robot_at_goal' 
-
+        self.status_topic = '/robot_at_goal'
+         
+         
+         
+        # Modes: "speech_only" or "guide_and_navigate"
+        self.operating_mode = "guide_and_navigate"
+        self.main_menu_greeting = "Hello. How can I help you?" 
+        self.follow_me_bag = "bag/follow_me"
+        
         # --- ROS interfaces ---
         self.subscription = self.create_subscription(
             String,
@@ -88,67 +96,130 @@ class LlmGestureSpeechNode(Node):
             self.get_logger().info('DEBUG: Received FALSE signal from Nav2. Still waiting...')
 
     def llm_callback(self, msg: String):
-        text = msg.data.strip()
-        if not text:
+        raw = msg.data.strip()
+        if not raw:
             return
-
-        self.get_logger().info(f'Received LLM command: "{text}"')
-        self.command_queue.put(text)
+    
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError:
+            payload = {"type": "plain_text", "text": raw}
+    
+        self.get_logger().info(f'Received command payload: {payload}')
+        self.command_queue.put(payload)
 
     def worker_loop(self):
         while rclpy.ok():
-            text = self.command_queue.get()
-            # Reset event at the start of every new command to block speech
-            self.robot_ready_event.clear() 
-            
+            payload = self.command_queue.get()
+            self.robot_ready_event.clear()
+
             try:
-                # 1. Determine if we need to move
+                cmd_type = payload.get("type", "plain_text")
+                text = payload.get("text", "").strip()
+                station = payload.get("station")
+                if cmd_type == "thinking_start":
+                    self.start_thinking_gesture()
+                    continue
+                
+                if cmd_type == "thinking_stop":
+                    self.stop_thinking_gesture()
+                    continue
+                # Always say this when returning to / showing main menu
+                if cmd_type == "main_menu":
+                    self.get_logger().info('DEBUG: Main menu greeting triggered.')
+                    self.say_text(self.main_menu_greeting)
+                    continue
+
+                # Plain speech mode: never navigate, never do follow-me flow
+                if self.operating_mode == "speech_only":
+                    self.get_logger().info('DEBUG: Running in speech_only mode.')
+                    if text:
+                        speech_thread = threading.Thread(
+                            target=self.say_text,
+                            args=(text,),
+                            daemon=True
+                        )
+                        speech_thread.start()
+
+                        bag_path = self.find_matching_bag(text)
+                        if bag_path:
+                            self.play_gesture_bag_once(bag_path)
+
+                        speech_thread.join(timeout=0.1)
+                    continue
+
+                # guide_and_navigate mode
                 platform = self.find_platform_in_text(text)
                 bag_path = self.find_matching_bag(text)
 
-                if platform:
-                    self.get_logger().info(f'DEBUG: Platform identified: {platform}. Triggering Nav2.')
-                    
-                    # Send platform name to the Nav2 script
+                if cmd_type == "station_guidance" and station and platform:
+                    self.get_logger().info(
+                        f'DEBUG: guide_and_navigate mode: station={station}, platform={platform}'
+                    )
+
+                    # Before moving: follow-me message + follow-me gesture
+                    speech_thread = threading.Thread(
+                        target=self.say_follow_me_message,
+                        args=(station, platform),
+                        daemon=True
+                    )
+                    speech_thread.start()
+
+                    self.play_gesture_bag_once(self.follow_me_bag)
+                    speech_thread.join(timeout=0.1)
+
+                    # Publish platform for navigation
                     plat_msg = String()
                     plat_msg.data = platform
                     self.platform_pub_.publish(plat_msg)
 
-                    # WAIT for the status_callback to call .set()
-                    self.get_logger().info(f'DEBUG: [WAITING] Script is now paused until {self.status_topic} becomes True')
-                    
-                    # Wait with a timeout to prevent infinite blocking
+                    self.get_logger().info(
+                        f'DEBUG: [WAITING] Waiting for {self.status_topic} == True'
+                    )
+
                     arrived = self.robot_ready_event.wait(timeout=120.0)
-                    
+
                     if arrived:
-                        self.get_logger().info('DEBUG: [RESUMING] Nav2 success received. Proceeding to speech.')
+                        self.get_logger().info('DEBUG: Arrived at goal.')
+
+                        # After arrival: speak the original LLM guidance
+                        if text:
+                            arrival_speech_thread = threading.Thread(
+                                target=self.say_text,
+                                args=(text,),
+                                daemon=True
+                            )
+                            arrival_speech_thread.start()
+
+                            if bag_path:
+                                self.play_gesture_bag_once(bag_path)
+
+                            arrival_speech_thread.join(timeout=0.1)
                     else:
-                        self.get_logger().error('DEBUG: [TIMEOUT] Robot did not signal arrival within 60s.')
-                        # Decide here if you want to speak anyway or 'continue' to skip
-                
-                else:
-                    self.get_logger().info('DEBUG: No platform found in text. Skipping movement wait.')
+                        self.get_logger().error('DEBUG: Timed out waiting for arrival.')
 
-                # 2. Start speech and gesture
-                self.get_logger().info('Executing speech and gesture.')
-                
-                speech_thread = threading.Thread(
-                    target=self.say_text,
-                    args=(text,),
-                    daemon=True
-                )
-                speech_thread.start()
+                    continue
 
-                if bag_path:
-                    self.play_gesture_bag_once(bag_path)
+                # Fallback normal behavior
+                self.get_logger().info('DEBUG: guide_and_navigate fallback path.')
 
-                speech_thread.join(timeout=0.1)
+                if text:
+                    speech_thread = threading.Thread(
+                        target=self.say_text,
+                        args=(text,),
+                        daemon=True
+                    )
+                    speech_thread.start()
+
+                    if bag_path:
+                        self.play_gesture_bag_once(bag_path)
+
+                    speech_thread.join(timeout=0.1)
 
             except Exception as e:
                 self.get_logger().error(f'Worker error: {e}')
             finally:
                 self.command_queue.task_done()
-
     def find_platform_in_text(self, text: str):
         """
         Identifies the specific platform at South Kensington.
@@ -187,12 +258,61 @@ class LlmGestureSpeechNode(Node):
 
         return found_line # Fallback to just the line name if no direction is found
 
+    def find_station_in_text(self, text: str):
+        """
+        Try to identify a station name from the text.
+        Returns a title-cased station string, e.g. 'South Kensington', or None.
+        """
+
+        normalized = text.lower().strip()
+
+        # Optional: known stations list
+        known_stations = [
+            "south kensington",
+            "victoria",
+            "green park",
+            "gloucester road",
+            "earls court",
+            "paddington",
+            "kings cross",
+            "waterloo",
+        ]
+
+        for station in sorted(known_stations, key=len, reverse=True):
+            if station in normalized:
+                return station.title()
+
+        # Fallback regex patterns
+        patterns = [
+            r"(?:to|towards|for)\s+([a-z\s]+?)\s+station",
+            r"(?:to|towards|for)\s+([a-z\s]+?)(?:\s+(district|circle|piccadilly|eastbound|westbound|northbound|southbound)|$)",
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, normalized)
+            if match:
+                station = match.group(1).strip()
+                if station:
+                    return " ".join(word.capitalize() for word in station.split())
+
+        return None
     def say_text(self, text: str):
         msg = String()
         msg.data = text
         self.speech_pub_.publish(msg)
         self.get_logger().info(f'Speech published: "{text}"')
 
+    def platform_to_speech(self, platform: str) -> str:
+        if not platform:
+            return ""
+
+        parts = platform.split("_")
+        if len(parts) == 2:
+            line, direction = parts
+            return f"{line.capitalize()} line {direction} platform"
+
+        return platform.replace("_", " ").capitalize()
+    
     def normalize_text(self, text: str) -> str:
         text = text.lower().strip()
         text = re.sub(r"[^a-z0-9\s]", " ", text)
@@ -208,6 +328,18 @@ class LlmGestureSpeechNode(Node):
                 return bag_path
         return None
 
+
+    def say_follow_me_message(self, station: str, platform: str):
+        spoken_platform = self.platform_to_speech(platform)
+    
+        msg = String()
+        msg.data = (
+            f"I will take you to {station}. "
+            f"We need to go to {spoken_platform}. "
+            f"Follow me."
+        )
+        self.speech_pub_.publish(msg)
+        self.get_logger().info(f'Follow-me speech published: "{msg.data}"')
     def load_bag(self, bag_dir_path):
         trajectory = []
         reader = rosbag2_py.SequentialReader()

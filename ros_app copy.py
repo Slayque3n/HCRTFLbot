@@ -5,6 +5,7 @@ from maintextandspeech import speech_to_text, text_to_speech, findkeywords, get_
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
+import json
 
 from threading import Thread, Lock
 import atexit
@@ -12,8 +13,8 @@ import atexit
 
 bsl_info = None
 flask_node = None
-msg_lock = Lock()  # for thread-safe access to latest_message
-node_lock = Lock() # for thread-safe access to the flask node
+msg_lock = Lock()  
+node_lock = Lock()
 ros_station_response = None
 platform_info = None
 bsl_redirect = False
@@ -23,8 +24,8 @@ class FlaskNode(Node):
 
     def __init__(self):
         super().__init__('flask_node')
-        self.platform_publisher_ = self.create_publisher(String, 'platform_topic', 10)
-        self.llm_response_publisher = self.create_publisher(String, 'llm_topic', 10)
+        self.platform_publisher_ = self.create_publisher(String, '/platform_name', 10)
+        self.llm_response_publisher = self.create_publisher(String, '/llm_topic', 10)
         self.subscription = self.create_subscription(
             String,
             'bsl_data',
@@ -33,6 +34,8 @@ class FlaskNode(Node):
         self.subscription  # prevent unused variable warning
         timer_period = 0.5  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
+        self.thinking_active = threading.Event()
+        self.thinking_thread = None
 
     def listener_callback(self, msg):
         global bsl_info, bsl_redirect
@@ -42,7 +45,29 @@ class FlaskNode(Node):
             else:
                 bsl_info = msg.data
         #self.get_logger().info('I heard: "%s"' % msg.data)
-
+    def thinking_loop(self):
+        while rclpy.ok() and self.thinking_active.is_set():
+            self.play_gesture_bag_once("bag/thinking")
+            time.sleep(0.1)
+    
+    def start_thinking_gesture(self):
+        if self.thinking_active.is_set():
+            return
+    
+        self.get_logger().info("DEBUG: Starting thinking gesture.")
+        self.thinking_active.set()
+        self.thinking_thread = threading.Thread(
+            target=self.thinking_loop,
+            daemon=True
+        )
+        self.thinking_thread.start()
+    
+    def stop_thinking_gesture(self):
+        if not self.thinking_active.is_set():
+            return
+    
+        self.get_logger().info("DEBUG: Stopping thinking gesture.")
+        self.thinking_active.clear()
     def timer_callback(self):
         msg = String()
         with msg_lock:
@@ -154,6 +179,13 @@ def ros_thread_func():
 ros_thread = Thread(target=ros_thread_func, daemon=True)
 ros_thread.start()
 
+def publish_llm_payload(payload: dict):
+    global flask_node
+    if flask_node is None:
+        return
+    ros_msg = String()
+    ros_msg.data = json.dumps(payload)
+    flask_node.llm_response_publisher.publish(ros_msg)
 
 #ROS Shutdown Procedure
 
@@ -166,17 +198,20 @@ def shutdown_ros():
 
 
 @app.route("/", methods=["GET", "POST"])
-@app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
         language = request.form["language"]
         return redirect(url_for("speak", language=language))
 
-    # Default UI language
     ui = translations["en-US"]
 
+    # Always greet when landing on the main menu
+    publish_llm_payload({
+        "type": "main_menu",
+        "text": "Hello. How can I help you?"
+    })
+
     return render_template("index.html", ui=ui)
-@app.route("/speak", methods=["GET", "POST"])
 @app.route("/speak", methods=["GET", "POST"])
 def speak():
     global flask_node
@@ -187,19 +222,28 @@ def speak():
     if request.method == "POST":
         heard = speech_to_text(language)
 
-        response = ask_llm(
-            heard +
-            " from South Kensington via the underground. You are a station guide and you need to tell me which platform I need to go to. Keep it concise. Use this format: From South Kensington, head to the **Piccadilly Line platforms**. Take a train from the **Northbound platform** (direction Cockfosters) directly to King's Cross St. Pancras." +
-            language
-        )
+        publish_llm_payload({
+            "type": "thinking_start"
+        })
+
+        try:
+            response = ask_llm(
+                heard +
+                " from South Kensington via the underground. You are a station guide and you need to tell me which platform I need to go to. Keep it concise. Use this format: From South Kensington, head to the **Piccadilly Line platforms**. Take a train from the **Northbound platform** (direction Cockfosters) directly to King's Cross St. Pancras." +
+                language
+            )
+        finally:
+            publish_llm_payload({
+                "type": "thinking_stop"
+            })
+
         findkeywords(response)
-        #text_to_speech(response, language)
-        ros_response = String()
-        ros_response.data = response
 
-        #with node_lock:
-        flask_node.llm_response_publisher.publish(ros_response)
-
+        publish_llm_payload({
+            "type": "station_guidance",
+            "station": heard,
+            "text": response
+        })
     ui = translations.get(language, translations["en-US"])
 
     return render_template(
@@ -251,10 +295,11 @@ def bsl_result():
         "from South Kensington via the underground. You are a station guide and you need to tell me which platform I need to go to. Keep it concise. Use this format: From South Kensington, head to the **Piccadilly Line platforms**. Take a train from the **Northbound platform** (direction Cockfosters) directly to King's Cross St. Pancras."
     )
 
-    ros_response = String()
-    ros_response.data = response
-
-    flask_node.llm_response_publisher.publish(ros_response)
+    publish_llm_payload({
+    "type": "station_guidance",
+    "station": station,
+    "text": response
+    })
     with msg_lock:
         bsl_redirect = False
     return render_template("bsl_result.html", station=station, response=response)
