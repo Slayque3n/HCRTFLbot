@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BSL Mode – Directions</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #f8bbd0, #fce4ec);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 40px 20px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            background: #ffffff;
+            padding: 45px 50px;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+            max-width: 650px;
+            width: 100%;
+        }
+
+        h2 {
+            margin-top: 0;
+            text-align: center;
+            font-size: 26px;
+            font-weight: 700;
+            color: #c2185b;
+        }
+
+        .station-name {
+            text-align: center;
+            font-size: 20px;
+            font-weight: 600;
+            color: #ad1457;
+            background: #fce4ec;
+            border-radius: 14px;
+            padding: 14px 20px;
+            margin-bottom: 28px;
+        }
+
+        hr {
+            border: none;
+            height: 1px;
+            background: #f8bbd0;
+            margin: 24px 0;
+        }
+
+        .response-box {
+            background: #fce4ec;
+            border-left: 4px solid #ec407a;
+            border-radius: 16px;
+            padding: 22px 24px;
+            font-size: 16px;
+            line-height: 1.7;
+            color: #880e4f;
+            white-space: pre-wrap;
+        }
+
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 28px;
+            text-decoration: none;
+            color: #c2185b;
+            font-weight: 500;
+            transition: opacity 0.2s ease;
+        }
+
+        .back-link:hover { opacity: 0.7; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🤟 BSL Mode – Directions</h2>
+
+    <div class="station-name">📍 {{ station }}</div>
+
+    <hr>
+
+    <div class="response-box">{{ response }}</div>
+
+    <a class="back-link" href="{{ url_for('bsl_spell') }}">← Spell another station</a>
+    <a class="back-link" href="{{ url_for('index') }}">← Back to language select</a>
+</div>
+
+</body>
+</html>

@@ -20,6 +20,8 @@ translations = {
         "back_languages":   "← Back to language select",
         "back_stations":    "← Back to stations",
         "directions_for":   "Directions to",
+        "quick_stations":   "Quick Stations",
+        "back":             "← Back",
     },
     "de-DE": {
         "select_language":  "Sprache auswählen",
@@ -36,6 +38,8 @@ translations = {
         "back_languages":   "← Zurück zur Sprachauswahl",
         "back_stations":    "← Zurück zu den Stationen",
         "directions_for":   "Wegbeschreibung zu",
+        "quick_stations":   "Schnelle Stationen",
+        "back":             "← Zurück",
     },
     "fr-FR": {
         "select_language":  "Choisir une langue",
@@ -52,6 +56,8 @@ translations = {
         "back_languages":   "← Retour au choix de la langue",
         "back_stations":    "← Retour aux stations",
         "directions_for":   "Itinéraire vers",
+        "quick_stations":   "Stations rapides",
+        "back":             "← Retour",
     },
     "es-ES": {
         "select_language":  "Seleccionar idioma",
@@ -68,6 +74,8 @@ translations = {
         "back_languages":   "← Volver a selección de idioma",
         "back_stations":    "← Volver a las estaciones",
         "directions_for":   "Cómo llegar a",
+        "quick_stations":   "Estaciones rápidas",
+        "back":             "← Volver",
     },
     "it-IT": {
         "select_language":  "Seleziona lingua",
@@ -84,6 +92,8 @@ translations = {
         "back_languages":   "← Torna alla selezione della lingua",
         "back_stations":    "← Torna alle stazioni",
         "directions_for":   "Come arrivare a",
+        "quick_stations":   "Stazioni rapide",
+        "back":             "← Indietro",
     },
     "ru-RU": {
         "select_language":  "Выберите язык",
@@ -100,6 +110,8 @@ translations = {
         "back_languages":   "← К выбору языка",
         "back_stations":    "← К станциям",
         "directions_for":   "Маршрут до",
+        "quick_stations":   "Быстрые станции",
+        "back":             "← Назад",
     },
 }
 
@@ -114,7 +126,6 @@ STATIONS_DEFAULT = [
     ("Bank / Monument",          "Bank"),
     ("Stratford",                "Stratford"),
     ("Canary Wharf",             "Canary Wharf"),
-    ("Oxford Circus",            "Oxford Circus"),
 ]
 
 STATIONS = {
@@ -128,7 +139,6 @@ STATIONS = {
         ("Бэнк / Монумент",           "Bank"),
         ("Стратфорд",                 "Stratford"),
         ("Канэри-Уорф",               "Canary Wharf"),
-        ("Оксфорд-Серкус",            "Oxford Circus"),
     ],
 }
 
@@ -141,7 +151,7 @@ app = Flask(__name__)
 def index():
     if request.method == "POST":
         language = request.form["language"]
-        return redirect(url_for("stations", language=language))
+        return redirect(url_for("speak", language=language))
     return render_template("index.html", ui=translations["en-US"])
 
 

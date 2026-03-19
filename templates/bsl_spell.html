@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BSL Mode – Spell a Station</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #f8bbd0, #fce4ec);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 40px 20px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            background: #ffffff;
+            padding: 45px 50px;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h2 {
+            margin-top: 0;
+            font-size: 26px;
+            font-weight: 700;
+            color: #c2185b;
+        }
+
+        .subtitle {
+            color: #555;
+            font-size: 15px;
+            margin-bottom: 30px;
+        }
+
+        .word-display {
+            font-size: 48px;
+            font-weight: 700;
+            color: #c2185b;
+            letter-spacing: 6px;
+            min-height: 70px;
+            background: #fce4ec;
+            border-radius: 16px;
+            padding: 18px 24px;
+            margin-bottom: 24px;
+            word-break: break-all;
+        }
+
+        .word-display.empty {
+            color: #f48fb1;
+            font-size: 22px;
+            font-weight: 400;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .last-letter {
+            display: inline-block;
+            font-size: 64px;
+            font-weight: 800;
+            color: #ec407a;
+            background: #fce4ec;
+            border-radius: 16px;
+            padding: 16px 32px;
+            margin-bottom: 24px;
+            min-width: 100px;
+            animation: pop 0.2s ease;
+        }
+
+        @keyframes pop {
+            0%   { transform: scale(0.7); opacity: 0.4; }
+            60%  { transform: scale(1.15); }
+            100% { transform: scale(1);   opacity: 1; }
+        }
+
+        .timer-bar-wrap {
+            background: #fce4ec;
+            border-radius: 30px;
+            height: 10px;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+
+        .timer-bar {
+            height: 100%;
+            background: #ec407a;
+            border-radius: 30px;
+            width: 100%;
+            transition: width linear;
+        }
+
+        .timer-label {
+            font-size: 13px;
+            color: #ad1457;
+            margin-bottom: 28px;
+        }
+
+        .status {
+            font-size: 15px;
+            color: #888;
+            margin-bottom: 20px;
+            min-height: 22px;
+        }
+
+        .clear-btn {
+            background: transparent;
+            border: 2px solid #f48fb1;
+            color: #c2185b;
+            padding: 10px 24px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            margin-bottom: 10px;
+        }
+
+        .clear-btn:hover { background: #fce4ec; }
+
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            text-decoration: none;
+            color: #c2185b;
+            font-weight: 500;
+            transition: opacity 0.2s ease;
+        }
+
+        .back-link:hover { opacity: 0.7; }
+
+        .quick-btn {
+            display: inline-block;
+            margin-top: 16px;
+            padding: 12px 28px;
+            background: transparent;
+            color: #c2185b;
+            font-size: 15px;
+            font-weight: 600;
+            border: 2px solid #ec407a;
+            border-radius: 30px;
+            text-decoration: none;
+            transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+        }
+
+        .quick-btn:hover {
+            background: #ec407a;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        #submitForm { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🤟 Spell it out</h2>
+    <p class="subtitle">Sign each letter — when you pause, the station will be looked up</p>
+
+    <div id="lastLetterBox" class="last-letter" style="display:none;"></div>
+
+    <div id="wordDisplay" class="word-display empty">Waiting for letters...</div>
+
+    <div class="timer-bar-wrap">
+        <div class="timer-bar" id="timerBar"></div>
+    </div>
+    <div class="timer-label" id="timerLabel">Sign a letter to begin</div>
+
+    <div class="status" id="status"></div>
+
+    <button class="clear-btn" onclick="clearWord()">Clear</button>
+
+    <div>
+        <a class="quick-btn" href="{{ url_for('stations', language='en-US') }}">Quick Stations</a>
+    </div>
+
+    <form id="submitForm" method="POST" action="/bsl/result">
+        <input type="hidden" name="station" id="stationInput">
+    </form>
+
+    <a class="back-link" href="{{ url_for('index') }}">← Back to language select</a>
+</div>
+
+<script>
+    const POLL_MS    = 400;
+    const TIMEOUT_MS = 3000;
+
+    let word = "";
+    let lastLetterTime = null;
+    let timerInterval  = null;
+    let submitted      = false;
+
+    const wordDisplay   = document.getElementById("wordDisplay");
+    const lastLetterBox = document.getElementById("lastLetterBox");
+    const timerBar      = document.getElementById("timerBar");
+    const timerLabel    = document.getElementById("timerLabel");
+    const statusEl      = document.getElementById("status");
+
+    function updateWordDisplay() {
+        if (word.length === 0) {
+            wordDisplay.textContent = "Waiting for letters...";
+            wordDisplay.classList.add("empty");
+        } else {
+            wordDisplay.textContent = word;
+            wordDisplay.classList.remove("empty");
+        }
+    }
+
+    function showLastLetter(letter) {
+        lastLetterBox.style.display = "inline-block";
+        lastLetterBox.textContent = letter;
+        lastLetterBox.style.animation = "none";
+        lastLetterBox.offsetHeight;
+        lastLetterBox.style.animation = "pop 0.2s ease";
+    }
+
+    function clearWord() {
+        word = "";
+        lastLetterTime = null;
+        lastLetterBox.style.display = "none";
+        timerBar.style.width = "100%";
+        timerLabel.textContent = "Sign a letter to begin";
+        statusEl.textContent = "";
+        updateWordDisplay();
+    }
+
+    function submitWord() {
+        if (submitted || word.length === 0) return;
+        submitted = true;
+        clearInterval(timerInterval);
+        statusEl.textContent = "Looking up \"" + word + "\"...";
+        timerLabel.textContent = "Submitting!";
+        timerBar.style.transition = "none";
+        timerBar.style.width = "0%";
+        document.getElementById("stationInput").value = word;
+        document.getElementById("submitForm").submit();
+    }
+
+    function updateTimer() {
+        if (!lastLetterTime) return;
+        const elapsed   = Date.now() - lastLetterTime;
+        const remaining = Math.max(0, TIMEOUT_MS - elapsed);
+        const pct       = (remaining / TIMEOUT_MS) * 100;
+        timerBar.style.transition = "none";
+        timerBar.style.width = pct + "%";
+        timerLabel.textContent = "Submitting in " + (remaining / 1000).toFixed(1) + "s…";
+        if (remaining === 0) submitWord();
+    }
+
+    async function pollLetter() {
+        if (submitted) return;
+        try {
+            const res  = await fetch("/bsl/spell/letter");
+            const data = await res.json();
+            if (data.letter) {
+                word += data.letter.toUpperCase();
+                lastLetterTime = Date.now();
+                showLastLetter(data.letter.toUpperCase());
+                updateWordDisplay();
+                statusEl.textContent = "";
+            }
+        } catch (e) {
+            statusEl.textContent = "Connection error — retrying…";
+        }
+        if (!submitted) setTimeout(pollLetter, POLL_MS);
+    }
+
+    timerInterval = setInterval(updateTimer, 50);
+    pollLetter();
+</script>
+
+</body>
+</html>

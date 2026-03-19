@@ -144,6 +144,31 @@
         .back-link:hover {
             opacity: 0.7;
         }
+
+        .quick-btn {
+            display: inline-block;
+            margin-top: 16px;
+            padding: 12px 28px;
+            background: transparent;
+            color: #c2185b;
+            font-size: 15px;
+            font-weight: 600;
+            border: 2px solid #ec407a;
+            border-radius: 30px;
+            text-decoration: none;
+            transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+        }
+
+        .quick-btn:hover {
+            background: #ec407a;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .quick-btn-wrap {
+            text-align: center;
+            margin-top: 10px;
+        }
     </style>
 </head>
 
@@ -162,6 +187,10 @@
                 <span id="buttonText">{{ ui.speak }}</span>
             </button>
         </form>
+
+        <div class="quick-btn-wrap">
+            <a class="quick-btn" href="{{ url_for('stations', language=language) }}">{{ ui.quick_stations }}</a>
+        </div>
 
         <div id="statusContainer" class="status hidden">
             <div class="status-indicator"></div>
