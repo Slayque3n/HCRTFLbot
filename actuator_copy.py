@@ -126,14 +126,14 @@ class LlmGestureSpeechNode(Node):
         return False
     
     def wait_for_lift_door(self, timeout: float = 60.0) -> bool:
-        self.lift_door_event.clear()
         self.get_logger().info('DEBUG: Waiting for lift door open flag...')
         opened = self.lift_door_event.wait(timeout=timeout)
-
+    
         if opened:
             self.get_logger().info('DEBUG: Lift door opened.')
+            self.lift_door_event.clear()
             return True
-
+    
         self.get_logger().error('DEBUG: Timed out waiting for lift door open flag.')
         return False
     
@@ -350,11 +350,11 @@ class LlmGestureSpeechNode(Node):
                         f"We need to go to {self.platform_to_speech(platform)}. "
                         f"Follow me."
                     )
-                
-                    self.speak_then_phrase_timed_gesture(
+
+                    self.speak_with_optional_fixed_delay(
                         text=follow_text,
                         bag_path=self.follow_me_bag,
-                        trigger_phrase="follow me"
+                        fixed_delay_key="follow_me"
                     )
                 
                     if platform.startswith("piccadilly_"):

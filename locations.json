@@ -24,9 +24,9 @@
     "frame_id": "map"
   },
   "district_westbound": {
-    "x": 1.6631202569685122,
-    "y": 5.325604415168859,
-    "yaw": -1.8069967403985494,
+    "x": 1.7521823861269796,
+    "y": 6.2478502855625395,
+    "yaw": -2.1396614107496212,
     "frame_id": "map"
   },
   "district_westbound_2": {
@@ -48,27 +48,57 @@
     "frame_id": "map"
   },
   "lift_door_outside": {
-      "x": 1.1,
-      "y": 1.1,
-      "yaw": 1.1,
-      "frame_id": "map"
+    "x": 1.1,
+    "y": 1.1,
+    "yaw": 1.1,
+    "frame_id": "map"
   },
   "lift_inside_entry": {
-      "x": 1.1,
-      "y": 1.1,
-      "yaw": 1.1,
-      "frame_id": "map"
+    "x": 1.1,
+    "y": 1.1,
+    "yaw": 1.1,
+    "frame_id": "map"
   },
   "lift_inside_turned": {
-      "x": 1.1,
-      "y": 1.1,
-      "yaw": 1.1,
-      "frame_id": "map"
+    "x": 1.1,
+    "y": 1.1,
+    "yaw": 1.1,
+    "frame_id": "map"
   },
   "lift_exit_outside": {
-      "x": 1.1,
-      "y": 1.1,
-      "yaw": 1.1,
-      "frame_id": "map"
+    "x": 1.1,
+    "y": 1.1,
+    "yaw": 1.1,
+    "frame_id": "map"
+  },
+  "lift_door_outside_2": {
+    "x": -1.1031518076843192,
+    "y": -2.1316918002399667,
+    "yaw": 2.721072802347393,
+    "frame_id": "map"
+  },
+  "district_westbound_final": {
+    "x": 1.8949066988586698,
+    "y": 6.698630272797196,
+    "yaw": -2.2974150080170364,
+    "frame_id": "map"
+  },
+  "lift_inside_entry_1": {
+    "x": -3.2938735212291856,
+    "y": -1.3096613973631575,
+    "yaw": 2.829067869260545,
+    "frame_id": "map"
+  },
+  "lift_inside_turned_1": {
+    "x": -3.5303696431936737,
+    "y": -1.290984057890977,
+    "yaw": -0.31796594192941485,
+    "frame_id": "map"
+  },
+  "lift_exit_outside_1": {
+    "x": -0.47373174089885156,
+    "y": -2.1117817195981248,
+    "yaw": -0.3029205884045455,
+    "frame_id": "map"
   }
 }

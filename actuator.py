@@ -56,6 +56,7 @@ class LlmGestureSpeechNode(Node):
         self.stiffness_pub_ = self.create_publisher(JointState, self.stiffness_topic, 10)
         self.platform_pub_ = self.create_publisher(String, self.platform_topic, 10)
 
+        self.crouch_bag = "bag/crouch"
         self.thinking_bag = "bag/thinking"
         self.thinking_active = threading.Event()
         self.thinking_thread = None
@@ -265,11 +266,18 @@ class LlmGestureSpeechNode(Node):
                         bag_path=self.follow_me_bag,
                         fixed_delay_key="follow_me"
                     )
-
+                    # --- NEW: Pre-navigation crouch ---
+                    self.get_logger().info("DEBUG: Performing crouch before navigation.")
+                    
+                    if os.path.exists(self.crouch_bag):
+                        self.play_gesture_bag_once(self.crouch_bag)
+                    else:
+                        self.get_logger().warn(f"Crouch bag not found: {self.crouch_bag}")
                     # Publish platform for navigation
                     self.robot_ready_event.clear()
                     plat_msg = String()
                     plat_msg.data = platform
+                    
                     self.platform_pub_.publish(plat_msg)
 
                     self.get_logger().info(
