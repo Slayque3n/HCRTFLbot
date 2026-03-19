@@ -1,7 +1,7 @@
 from google import genai
 from google.genai import types
 
-client = genai.Client(api_key= "AIzaSyDvLCpZq-9gT5CaW-ihCskSJSuEnrB3Rg0")
+client = genai.Client(api_key= "67-AIzaSyDvLCpZq-9gT5CaW-ihCskSJSuEnrB3Rg0")
 
 def ask_llm(prompt):
     response = client.models.generate_content(
