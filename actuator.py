@@ -70,7 +70,10 @@ class LlmGestureSpeechNode(Node):
         # --- Playback config ---
         self.playback_speed = 1.0
         self.trim_threshold = 0.02
-
+        self.fixed_gesture_delay_map = {
+            "follow_me": 2.3,
+            "thinking": 0.1,
+        }
         # Gesture Mappings
         self.gesture_map = {
             "didn't hear": "bag/didnt_hear",
@@ -78,19 +81,68 @@ class LlmGestureSpeechNode(Node):
             "right": "bag/point_right",
             "northbound": "bag/point_left",
             "southbound": "bag/point_left",
-            "eastbound": "bag/point_right",
+            "eastbound": "bag/point_left",
             "westbound": "bag/point_right"
         }
-        self.gesture_delay_map = {
-            "follow_me": 2.0,
-            "didnt_hear": 0.2,
-        }
+        self.seconds_per_word = 0.25
+        self.speech_startup_offset = 0.2
         # Start the background worker thread
         self.worker = threading.Thread(target=self.worker_loop, daemon=True)
         self.worker.start()
 
         self.get_logger().info('DEBUG: LlmGestureSpeechNode initialized. Sync event is cleared.')
 
+    def count_words(self, text: str) -> int:
+        return len(re.findall(r"\b\w+\b", text))
+    def speak_with_optional_fixed_delay(
+        self,
+        text: str,
+        bag_path: str,
+        trigger_phrase: str = None,
+        fixed_delay_key: str = None
+    ):  
+        speech_thread = threading.Thread(
+            target=self.say_text,
+            args=(text,),
+            daemon=True
+        )
+        speech_thread.start()
+
+        if fixed_delay_key and fixed_delay_key in self.fixed_gesture_delay_map:
+            delay = self.fixed_gesture_delay_map[fixed_delay_key]
+            self.get_logger().info(
+                f'Fixed timing: "{fixed_delay_key}" -> delay {delay:.2f}s'
+            )
+        elif trigger_phrase:
+            delay = self.estimate_delay_to_phrase(text, trigger_phrase)
+            self.get_logger().info(
+                f'Phrase timing: "{trigger_phrase}" -> delay {delay:.2f}s'
+            )
+        else:
+            delay = 0.0
+
+        if delay > 0:
+            time.sleep(delay)
+
+        if bag_path:
+            self.play_gesture_bag_once(bag_path)
+
+        speech_thread.join()
+    def estimate_delay_to_phrase(self, full_text: str, trigger_phrase: str) -> float:
+        if not full_text or not trigger_phrase:
+            return 0.0
+
+        normalized_text = self.normalize_text(full_text)
+        normalized_trigger = self.normalize_text(trigger_phrase)
+
+        idx = normalized_text.find(normalized_trigger)
+        if idx == -1:
+            return 0.0
+
+        preceding_text = normalized_text[:idx]
+        preceding_word_count = self.count_words(preceding_text)
+
+        return self.speech_startup_offset + (preceding_word_count * self.seconds_per_word)
     def status_callback(self, msg: Bool):
         """ Receives signal from Nav2 script when robot arrives at platform """
         if msg.data is True:
@@ -112,16 +164,26 @@ class LlmGestureSpeechNode(Node):
         self.get_logger().info(f'Received command payload: {payload}')
         self.command_queue.put(payload)
 
-    def speak_then_delayed_gesture(self, text: str, bag_path: str, delay: float):
-                        speech_thread = threading.Thread(
-                            target=self.say_text,
-                            args=(text,),
-                            daemon=True
-                        )
-                        speech_thread.start()
-                        time.sleep(delay)
-                        self.play_gesture_bag_once(bag_path)
-                        speech_thread.join()
+    def speak_then_phrase_timed_gesture(self, text: str, bag_path: str, trigger_phrase: str):
+        speech_thread = threading.Thread(
+            target=self.say_text,
+            args=(text,),
+            daemon=True
+        )
+        speech_thread.start()
+
+        delay = self.estimate_delay_to_phrase(text, trigger_phrase)
+        self.get_logger().info(
+            f'Phrase timing: "{trigger_phrase}" -> delay {delay:.2f}s'
+        )
+
+        if delay > 0:
+            time.sleep(delay)
+
+        if bag_path:
+            self.play_gesture_bag_once(bag_path)
+
+        speech_thread.join()
     def worker_loop(self):
         while rclpy.ok():
             payload = self.command_queue.get()
@@ -198,10 +260,10 @@ class LlmGestureSpeechNode(Node):
                         f"Follow me."
                     )
 
-                    self.speak_then_delayed_gesture(
+                    self.speak_with_optional_fixed_delay(
                         text=follow_text,
                         bag_path=self.follow_me_bag,
-                        delay=self.gesture_delay_map.get("follow_me", 2.0)
+                        fixed_delay_key="follow_me"
                     )
 
                     # Publish platform for navigation
@@ -221,17 +283,16 @@ class LlmGestureSpeechNode(Node):
 
                         # After arrival: speak the original LLM guidance
                         if text:
-                            arrival_speech_thread = threading.Thread(
-                                target=self.say_text,
-                                args=(text,),
-                                daemon=True
-                            )
-                            arrival_speech_thread.start()
-
-                            if bag_path:
-                                self.play_gesture_bag_once(bag_path)
-
-                            arrival_speech_thread.join()
+                            trigger_phrase = self.find_trigger_phrase(text)
+                        
+                            if bag_path and trigger_phrase:
+                                self.speak_then_phrase_timed_gesture(
+                                    text=text,
+                                    bag_path=bag_path,
+                                    trigger_phrase=trigger_phrase
+                                )
+                            else:
+                                self.say_text(text)
                     else:
                         self.get_logger().error('DEBUG: Timed out waiting for arrival.')
 
@@ -259,7 +320,12 @@ class LlmGestureSpeechNode(Node):
                 self.command_queue.task_done()
     
     # Only showing the modified parts
-
+    def find_trigger_phrase(self, text: str):
+        normalized = self.normalize_text(text)
+        for phrase in sorted(self.gesture_map.keys(), key=len, reverse=True):
+            if phrase in normalized:
+                return phrase
+        return None
     def start_thinking_gesture(self):
         if self.thinking_active.is_set():
             self.get_logger().info('DEBUG: Thinking gesture already active.')
@@ -269,11 +335,17 @@ class LlmGestureSpeechNode(Node):
             self.get_logger().error(f'Thinking bag missing: {self.thinking_bag}')
             return
 
-        # --- NEW: Speak thinking phrase ---
-        thinking_msg = String()
-        thinking_msg.data = "Give me a second to think about it."
-        self.speech_pub_.publish(thinking_msg)
-        self.get_logger().info('DEBUG: Thinking speech published.')
+        thinking_text = "Give me a second to think about it."
+
+        speech_thread = threading.Thread(
+            target=self.say_text,
+            args=(thinking_text,),
+            daemon=True
+        )
+        speech_thread.start()
+
+        delay = self.fixed_gesture_delay_map.get("thinking", 0.3)
+        time.sleep(delay)
 
         self.thinking_stop_event.clear()
         self.thinking_active.set()
