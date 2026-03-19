@@ -143,6 +143,8 @@ class PepperPlatformNavNav2(Node):
 
     def on_platform(self, msg: String):
         name = msg.data.strip()
+        if not name:
+            return
         if name not in self.locations:
             self.publish_status('unknown_location', f'{name} not known', None)
             return
@@ -155,7 +157,7 @@ class PepperPlatformNavNav2(Node):
             self.publish_status('nav_unavailable', 'Nav2 action server not available', None)
             return
 
-        pose_dict = self.locations[name]
+        pose_dict = self.locations["test_point"]
         goal_pose = PoseStamped()
         goal_pose.header.stamp = self.get_clock().now().to_msg()
         goal_pose.header.frame_id = pose_dict.get('frame_id', self.default_frame_id)

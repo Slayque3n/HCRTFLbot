@@ -166,7 +166,6 @@ def shutdown_ros():
 
 
 @app.route("/", methods=["GET", "POST"])
-@app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
         language = request.form["language"]
@@ -177,7 +176,6 @@ def index():
 
     return render_template("index.html", ui=ui)
 @app.route("/speak", methods=["GET", "POST"])
-@app.route("/speak", methods=["GET", "POST"])
 def speak():
     global flask_node
     language = request.args.get("language", "en-US")
@@ -186,11 +184,21 @@ def speak():
 
     if request.method == "POST":
         heard = speech_to_text(language)
-
+        
+        if not heard:
+            return render_template(
+                "speak.html",
+                language=language,
+                heard="",
+                response="No speech detected.",
+                ui=translations.get(language, translations["en-US"])
+            )
         response = ask_llm(
-            heard +
-            " from South Kensington via the underground. You are a station guide and you need to tell me which platform I need to go to. Keep it concise. Use this format: From South Kensington, head to the **Piccadilly Line platforms**. Take a train from the **Northbound platform** (direction Cockfosters) directly to King's Cross St. Pancras." +
-            language
+            f"How do I get to {heard} from South Kensington via the underground? "
+            f"You are a station guide and you need to tell me which platform I need to go to. "
+            f"Keep it concise. Respond in {language}. "
+            f"Use this format: From South Kensington, head to the Piccadilly Line platforms. "
+            f"Take a train from the Northbound platform (direction Cockfosters) directly to King's Cross St. Pancras."
         )
         findkeywords(response)
         #text_to_speech(response, language)

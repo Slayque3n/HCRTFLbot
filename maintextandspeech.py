@@ -27,25 +27,14 @@ keywordsdirection = [
 ]
 
 
-def text_to_speech(text, language,filename="output.mp3", slow=False):
+def text_to_speech(text, language, filename="output.mp3", slow=False):
     tts_lang = TTS_LANG_MAP.get(language, "en")
     tts = gTTS(text=text, lang=tts_lang, slow=slow)
     tts.save(filename)
-    if(os.name == nt):
-        os.system(f"start {filename}")  # Windows only
 
-def text_to_speech(text, language, filename="output.mp3", slow=False):
-    """
-    Converts text to speech and plays the audio.
-
-    :param text: Text to convert to speech
-    :param language: Language code (default: 'en')
-    :param filename: Output mp3 file name
-    :param slow: Speak slowly if True
-    """
-    tts = gTTS(text=text, lang=language, slow=slow)
-    tts.save(filename)
-    os.system(f"start {filename}")  # Windows only
+    if os.name == "nt":
+        os.system(f"start {filename}")
+        
 
 
 def speech_to_text(language):
@@ -64,15 +53,14 @@ def speech_to_text(language):
                 
                 print("--- Ready! Say something ---")
                 audio = r.listen(source)
-                if dev:
-                    Mic_tuning = Tuning(dev)
-
+                
+            Mic_tuning = Tuning(dev) if dev else None
             print("Recognizing...")
-            text = r.recognize_google(audio)
+            text = r.recognize_google(audio, language=language)
             print(f"You said: {text}")
             print (f"Direction of audio: {Mic_tuning.direction}")
 
-            if "exit" in text:
+            if "exit" in text.lower():
                 print("Exiting program...")
                 return None
             return text

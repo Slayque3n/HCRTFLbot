@@ -31,10 +31,10 @@ class LlmGestureSpeechNode(Node):
          
          
          
-        # Modes: "speech_only" or "guide_and_navigate"
-        self.operating_mode = "guide_and_navigate"
+        # Modes: "speech_only", "speech_and_gestures", or "guide_and_navigate"
+        self.operating_mode = "speech_and_gestures"
         self.main_menu_greeting = "Hello. How can I help you?" 
-        self.follow_me_bag = "bag/follow_me"
+        self.follow_me_bag = "bag/follow_mee"
         
         # --- ROS interfaces ---
         self.subscription = self.create_subscription(
@@ -56,6 +56,10 @@ class LlmGestureSpeechNode(Node):
         self.stiffness_pub_ = self.create_publisher(JointState, self.stiffness_topic, 10)
         self.platform_pub_ = self.create_publisher(String, self.platform_topic, 10)
 
+        self.thinking_bag = "bag/thinking"
+        self.thinking_active = threading.Event()
+        self.thinking_thread = None
+        self.thinking_stop_event = threading.Event()
         # --- Coordination State ---
         self.robot_ready_event = threading.Event()
         # Initialize as cleared (locked)
@@ -69,16 +73,13 @@ class LlmGestureSpeechNode(Node):
 
         # Gesture Mappings
         self.gesture_map = {
-            "please": "bag/wave",
             "didn't hear": "bag/didnt_hear",
-            "sorry": "bag/didnt_hear",
             "left": "bag/point_left",
             "right": "bag/point_right",
-            "thinking": "bag/thinking",
-            "northbound": "bag/dileft",
-            "southbound": "bag/dileft",
-            "eastbound": "bag/diright",
-            "westbound": "bag/dileft",
+            "northbound": "bag/point_left",
+            "southbound": "bag/point_left",
+            "eastbound": "bag/point_right",
+            "westbound": "bag/point_right"
         }
 
         # Start the background worker thread
@@ -111,7 +112,6 @@ class LlmGestureSpeechNode(Node):
     def worker_loop(self):
         while rclpy.ok():
             payload = self.command_queue.get()
-            self.robot_ready_event.clear()
 
             try:
                 cmd_type = payload.get("type", "plain_text")
@@ -131,8 +131,16 @@ class LlmGestureSpeechNode(Node):
                     continue
 
                 # Plain speech mode: never navigate, never do follow-me flow
+                # speech_only: talk only
                 if self.operating_mode == "speech_only":
                     self.get_logger().info('DEBUG: Running in speech_only mode.')
+                    if text:
+                        self.say_text(text)
+                    continue
+                
+                # speech_and_gestures: talk + gesture, never navigate
+                if self.operating_mode == "speech_and_gestures":
+                    self.get_logger().info('DEBUG: Running in speech_and_gestures mode.')
                     if text:
                         speech_thread = threading.Thread(
                             target=self.say_text,
@@ -169,6 +177,7 @@ class LlmGestureSpeechNode(Node):
                     speech_thread.join(timeout=0.1)
 
                     # Publish platform for navigation
+                    self.robot_ready_event.clear()
                     plat_msg = String()
                     plat_msg.data = platform
                     self.platform_pub_.publish(plat_msg)
@@ -220,6 +229,51 @@ class LlmGestureSpeechNode(Node):
                 self.get_logger().error(f'Worker error: {e}')
             finally:
                 self.command_queue.task_done()
+    
+    # Only showing the modified parts
+
+    def start_thinking_gesture(self):
+        if self.thinking_active.is_set():
+            self.get_logger().info('DEBUG: Thinking gesture already active.')
+            return
+
+        if not os.path.exists(self.thinking_bag):
+            self.get_logger().error(f'Thinking bag missing: {self.thinking_bag}')
+            return
+
+        # --- NEW: Speak thinking phrase ---
+        thinking_msg = String()
+        thinking_msg.data = "Give me a second to think about it."
+        self.speech_pub_.publish(thinking_msg)
+        self.get_logger().info('DEBUG: Thinking speech published.')
+
+        self.thinking_stop_event.clear()
+        self.thinking_active.set()
+        self.thinking_thread = threading.Thread(
+            target=self._thinking_gesture_loop,
+            daemon=True
+        )
+        self.thinking_thread.start()
+        self.get_logger().info('DEBUG: Thinking gesture started.')
+
+    def stop_thinking_gesture(self):
+        if not self.thinking_active.is_set():
+            self.get_logger().info('DEBUG: Thinking gesture already stopped.')
+            return
+
+        self.thinking_active.clear()
+        self.thinking_stop_event.set()
+
+        if self.thinking_thread and self.thinking_thread.is_alive():
+            self.thinking_thread.join(timeout=1.0)
+
+        self.thinking_thread = None
+        self.get_logger().info('DEBUG: Thinking gesture stopped.')
+    def _thinking_gesture_loop(self):
+        while rclpy.ok() and self.thinking_active.is_set():
+            self.play_gesture_bag_once(self.thinking_bag, stop_event=self.thinking_stop_event)
+            time.sleep(0.1)
+    
     def find_platform_in_text(self, text: str):
         """
         Identifies the specific platform at South Kensington.
@@ -229,7 +283,7 @@ class LlmGestureSpeechNode(Node):
 
         # 1. Define the lines and directions relevant to South Ken
         lines = ["district", "circle", "piccadilly"]
-        directions = ["eastbound", "westbound", "northbound", "southbound"]
+        directions = ["eastbound", "westbound"]
 
         # 2. Find which line is mentioned first
         found_line = None
@@ -421,7 +475,7 @@ class LlmGestureSpeechNode(Node):
             self.stiffness_pub_.publish(msg)
             time.sleep(0.2)
 
-    def play_gesture_bag_once(self, bag_dir_path):
+    def play_gesture_bag_once(self, bag_dir_path, stop_event=None):
         if not os.path.exists(bag_dir_path):
             self.get_logger().error(f'Path missing: {bag_dir_path}')
             return
@@ -439,6 +493,10 @@ class LlmGestureSpeechNode(Node):
         start_time = time.time()
 
         for step in trajectory:
+            if stop_event is not None and stop_event.is_set():
+                self.get_logger().info(f'Gesture interrupted for {bag_dir_path}')
+                return
+
             target_time = start_time + (step['time'] / self.playback_speed)
             now = time.time()
             if target_time > now:
@@ -462,6 +520,7 @@ def main(args=None):
     except KeyboardInterrupt:
         node.get_logger().info('KeyboardInterrupt: Shutting down.')
     finally:
+        node.stop_thinking_gesture()
         node.destroy_node()
         rclpy.shutdown()
 

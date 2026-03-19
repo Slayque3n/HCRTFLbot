@@ -17,7 +17,7 @@ def generate_launch_description():
         DeclareLaunchArgument('map', description='Absolute path to the occupancy map YAML file'),
         DeclareLaunchArgument('params_file', description='Absolute path to the Nav2 params YAML'),
         DeclareLaunchArgument('rviz_config', description='Absolute path to the RViz config'),
-        DeclareLaunchArgument('locations_file', default_value='~/pepper_named_locations_map.yaml'),
+        DeclareLaunchArgument('locations_file', default_value='/mnt/c/Users/dylan/Documents/imperial/year4/Human-Centred Robotics/HCRTFLbot/locations.json'),
         DeclareLaunchArgument('bridge_script', description='Absolute path to pepper_nav_script.py'),
         DeclareLaunchArgument('use_sim_time', default_value='false'),
 
