@@ -5,9 +5,11 @@ from maintextandspeech import speech_to_text, text_to_speech, findkeywords, get_
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
-
+import json
+import threading
 from threading import Thread, Lock
 import atexit
+import re
 
 
 bsl_info = None
@@ -17,22 +19,28 @@ node_lock = Lock() # for thread-safe access to the flask node
 ros_station_response = None
 platform_info = None
 bsl_redirect = False
-
+LANGUAGE_NAME_MAP = {
+    "en-US": "English",
+    "de-DE": "German",
+    "fr-FR": "French",
+    "es-ES": "Spanish",
+    "it-IT": "Italian",
+    "ru-RU": "Russian",
+}
 
 class FlaskNode(Node):
 
     def __init__(self):
         super().__init__('flask_node')
-        self.platform_publisher_ = self.create_publisher(String, 'platform_topic', 10)
-        self.llm_response_publisher = self.create_publisher(String, 'llm_topic', 10)
+        self.platform_publisher_ = self.create_publisher(String, '/platform_name', 10)
+        self.llm_response_publisher = self.create_publisher(String, '/llm_topic', 10)
         self.subscription = self.create_subscription(
             String,
             'bsl_data',
             self.listener_callback,
             10)
         self.subscription  # prevent unused variable warning
-        timer_period = 0.5  # seconds
-        self.timer = self.create_timer(timer_period, self.timer_callback)
+
 
     def listener_callback(self, msg):
         global bsl_info, bsl_redirect
@@ -43,15 +51,6 @@ class FlaskNode(Node):
                 bsl_info = msg.data
         #self.get_logger().info('I heard: "%s"' % msg.data)
 
-    def timer_callback(self):
-        msg = String()
-        with msg_lock:
-            if platform_info is not None:
-                msg.data = platform_info
-
-
-        if msg.data is not None:
-            self.platform_publisher_.publish(msg)
 
 translations = {
     "en-US": {
@@ -105,6 +104,20 @@ translations = {
 }
 
 
+def extract_platform_and_guidance(llm_response: str):
+    platform = None
+    guidance = llm_response.strip()
+
+    platform_match = re.search(r"PLATFORM:\s*([a-z_]+)", llm_response, re.IGNORECASE)
+    guidance_match = re.search(r"GUIDANCE:\s*(.*)", llm_response, re.IGNORECASE | re.DOTALL)
+
+    if platform_match:
+        platform = platform_match.group(1).strip().lower()
+
+    if guidance_match:
+        guidance = guidance_match.group(1).strip()
+
+    return platform, guidance
 
 def handle_bsl_command(command):
     global ros_station_response  
@@ -154,6 +167,13 @@ def ros_thread_func():
 ros_thread = Thread(target=ros_thread_func, daemon=True)
 ros_thread.start()
 
+def publish_llm_payload(payload: dict):
+    global flask_node
+    if flask_node is None:
+        return
+    ros_msg = String()
+    ros_msg.data = json.dumps(payload)
+    flask_node.llm_response_publisher.publish(ros_msg)
 
 #ROS Shutdown Procedure
 
@@ -164,15 +184,21 @@ def shutdown_ros():
         flask_node.destroy_node()
     rclpy.shutdown()
 
-
-@app.route("/", methods=["GET", "POST"])
+@app.route("/", methods=["GET", "POST", "HEAD"])
 def index():
     if request.method == "POST":
         language = request.form["language"]
         return redirect(url_for("speak", language=language))
 
-    # Default UI language
     ui = translations["en-US"]
+
+    if request.method == "HEAD":
+        return "", 200
+
+    publish_llm_payload({
+        "type": "main_menu",
+        "text": "Hello. How can I help you?"
+    })
 
     return render_template("index.html", ui=ui)
 @app.route("/speak", methods=["GET", "POST"])
@@ -181,11 +207,18 @@ def speak():
     language = request.args.get("language", "en-US")
     heard = ""
     response = ""
+    guidance = ""
+    platform = None
 
     if request.method == "POST":
         heard = speech_to_text(language)
-        
+
         if not heard:
+            publish_llm_payload({
+                "type": "didnt_hear",
+                "text": "Sorry, I didn't catch that. Please say that again.",
+                "language": language
+            })
             return render_template(
                 "speak.html",
                 language=language,
@@ -193,28 +226,60 @@ def speak():
                 response="No speech detected.",
                 ui=translations.get(language, translations["en-US"])
             )
-        response = ask_llm(
-            f"How do I get to {heard} from South Kensington via the underground? "
-            f"You are a station guide and you need to tell me which platform I need to go to. "
-            f"Keep it concise. Respond in {language}. "
-            f"Use this format: From South Kensington, head to the Piccadilly Line platforms. "
-            f"Take a train from the Northbound platform (direction Cockfosters) directly to King's Cross St. Pancras."
-        )
-        findkeywords(response)
+        publish_llm_payload({
+            "type": "thinking_start"
+        })
+        lang_name = LANGUAGE_NAME_MAP.get(language, "English")
+        try:
+            response = ask_llm(
+                f"How do I get to {heard} from South Kensington via the underground? "
+                f"You are a station guide. "
+                f"Return the answer in exactly this format:\n"
+                f"PLATFORM: <platform_name>\n"
+                f"GUIDANCE: <short spoken guidance>\n\n"
+                f"The platform_name must be one of:\n"
+                f"piccadilly_westbound, piccadilly_eastbound, "
+                f"district_eastbound, district_westbound, "
+                f"circle_eastbound, circle_westbound.\n\n"
+                f"Example:\n"
+                f"PLATFORM: piccadilly_eastbound\n"
+                f"GUIDANCE: From South Kensington, head to the Piccadilly Line platforms. "
+                f"Take a train from the eastbound platform toward Cockfosters directly to King's Cross St. Pancras.\n\n"
+                f"Respond in {lang_name} for the GUIDANCE line, but keep the PLATFORM value in lowercase underscore format."
+            )
+            platform, guidance = extract_platform_and_guidance(response)
+            ALLOWED_PLATFORMS = {
+                "piccadilly_westbound",
+                "piccadilly_eastbound",
+                "district_eastbound",
+                "district_westbound",
+                "circle_eastbound",
+                "circle_westbound",
+            }
+            if platform not in ALLOWED_PLATFORMS:
+                platform = None
+            if not guidance:
+                guidance = response.strip()
+        finally:
+            publish_llm_payload({
+                "type": "thinking_stop"
+            })
+        findkeywords(guidance)
         #text_to_speech(response, language)
-        ros_response = String()
-        ros_response.data = response
-
-        #with node_lock:
-        flask_node.llm_response_publisher.publish(ros_response)
-
+        publish_llm_payload({
+            "type": "station_guidance",
+            "station": heard,
+            "platform": platform,
+            "text": guidance,
+            "language": language
+        })
     ui = translations.get(language, translations["en-US"])
 
     return render_template(
         "speak.html",
         language=language,
         heard=heard,
-        response=response,
+        response=guidance,
         ui=ui
     )
 
@@ -254,18 +319,46 @@ def bsl_result():
         station = request.form.get("station", "").strip()
     else:
         station = ros_station_response
-    response = ask_llm(
-        "How do I get to " + station +
-        "from South Kensington via the underground. You are a station guide and you need to tell me which platform I need to go to. Keep it concise. Use this format: From South Kensington, head to the **Piccadilly Line platforms**. Take a train from the **Northbound platform** (direction Cockfosters) directly to King's Cross St. Pancras."
-    )
+        
+    publish_llm_payload({"type": "thinking_start"})
+    
+    try:
+        response = ask_llm(
+                    f"How do I get to {station} from South Kensington via the underground? "
+                    f"You are a station guide. "
+                    f"Return the answer in exactly this format:\n"
+                    f"PLATFORM: <platform_name>\n"
+                    f"GUIDANCE: <short spoken guidance>\n\n"
+                    f"The platform_name must be one of:\n"
+                    f"piccadilly_westbound, piccadilly_eastbound, "
+                    f"district_eastbound, district_westbound, "
+                    f"circle_eastbound, circle_westbound.\n\n"
+                    f"Example:\n"
+                    f"PLATFORM: piccadilly_eastbound\n"
+                    f"GUIDANCE: From South Kensington, head to the Piccadilly Line platforms. "
+                    f"Take a train from the eastbound platform toward Cockfosters directly to King's Cross St. Pancras.\n\n"
+                    f"Respond in en-US for the GUIDANCE line, but keep the PLATFORM value in lowercase underscore format."
+                )
+        platform, guidance = extract_platform_and_guidance(response)
+        
+        if not guidance:
+            guidance = response.strip()
+        
+        response = guidance
+    finally:
+        publish_llm_payload({"type": "thinking_stop"})
+    
 
-    ros_response = String()
-    ros_response.data = response
-
-    flask_node.llm_response_publisher.publish(ros_response)
+    publish_llm_payload({
+        "type": "station_guidance",
+        "station": station,
+        "platform": platform,
+        "text": guidance,
+        "language": "en-US"
+    })
     with msg_lock:
         bsl_redirect = False
-    return render_template("bsl_result.html", station=station, response=response)
+    return render_template("bsl_result.html", station=station, response=guidance)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True)

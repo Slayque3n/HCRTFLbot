@@ -32,7 +32,7 @@ class LlmGestureSpeechNode(Node):
          
          
         # Modes: "speech_only", "speech_and_gestures", or "guide_and_navigate"
-        self.operating_mode = "speech_and_gestures"
+        self.operating_mode = "guide_and_navigate"
         self.main_menu_greeting = "Hello. How can I help you?" 
         self.follow_me_bag = "bag/follow_mee"
         
@@ -81,7 +81,10 @@ class LlmGestureSpeechNode(Node):
             "eastbound": "bag/point_right",
             "westbound": "bag/point_right"
         }
-
+        self.gesture_delay_map = {
+            "follow_me": 2.0,
+            "didnt_hear": 0.2,
+        }
         # Start the background worker thread
         self.worker = threading.Thread(target=self.worker_loop, daemon=True)
         self.worker.start()
@@ -109,6 +112,16 @@ class LlmGestureSpeechNode(Node):
         self.get_logger().info(f'Received command payload: {payload}')
         self.command_queue.put(payload)
 
+    def speak_then_delayed_gesture(self, text: str, bag_path: str, delay: float):
+                        speech_thread = threading.Thread(
+                            target=self.say_text,
+                            args=(text,),
+                            daemon=True
+                        )
+                        speech_thread.start()
+                        time.sleep(delay)
+                        self.play_gesture_bag_once(bag_path)
+                        speech_thread.join()
     def worker_loop(self):
         while rclpy.ok():
             payload = self.command_queue.get()
@@ -153,28 +166,43 @@ class LlmGestureSpeechNode(Node):
                         if bag_path:
                             self.play_gesture_bag_once(bag_path)
 
-                        speech_thread.join(timeout=0.1)
+                        speech_thread.join()
                     continue
+                if cmd_type == "didnt_hear":
+                    if text:
+                        speech_thread = threading.Thread(
+                            target=self.say_text,
+                            args=(text,),
+                            daemon=True
+                        )
+                        speech_thread.start()
 
+                        self.play_gesture_bag_once("bag/didnt_hear")
+
+                        speech_thread.join()
+                    continue
                 # guide_and_navigate mode
-                platform = self.find_platform_in_text(text)
+                platform = payload.get("platform") or self.find_platform_in_text(text)
                 bag_path = self.find_matching_bag(text)
 
                 if cmd_type == "station_guidance" and station and platform:
+                    self.stop_thinking_gesture()
                     self.get_logger().info(
                         f'DEBUG: guide_and_navigate mode: station={station}, platform={platform}'
                     )
 
                     # Before moving: follow-me message + follow-me gesture
-                    speech_thread = threading.Thread(
-                        target=self.say_follow_me_message,
-                        args=(station, platform),
-                        daemon=True
+                    follow_text = (
+                        f"I will take you to {station}. "
+                        f"We need to go to {self.platform_to_speech(platform)}. "
+                        f"Follow me."
                     )
-                    speech_thread.start()
 
-                    self.play_gesture_bag_once(self.follow_me_bag)
-                    speech_thread.join(timeout=0.1)
+                    self.speak_then_delayed_gesture(
+                        text=follow_text,
+                        bag_path=self.follow_me_bag,
+                        delay=self.gesture_delay_map.get("follow_me", 2.0)
+                    )
 
                     # Publish platform for navigation
                     self.robot_ready_event.clear()
@@ -203,7 +231,7 @@ class LlmGestureSpeechNode(Node):
                             if bag_path:
                                 self.play_gesture_bag_once(bag_path)
 
-                            arrival_speech_thread.join(timeout=0.1)
+                            arrival_speech_thread.join()
                     else:
                         self.get_logger().error('DEBUG: Timed out waiting for arrival.')
 
@@ -223,7 +251,7 @@ class LlmGestureSpeechNode(Node):
                     if bag_path:
                         self.play_gesture_bag_once(bag_path)
 
-                    speech_thread.join(timeout=0.1)
+                    speech_thread.join()
 
             except Exception as e:
                 self.get_logger().error(f'Worker error: {e}')
@@ -277,7 +305,7 @@ class LlmGestureSpeechNode(Node):
     def find_platform_in_text(self, text: str):
         """
         Identifies the specific platform at South Kensington.
-        Returns strings like: 'district_eastbound', 'piccadilly_northbound', etc.
+        Returns strings like: 'district_eastbound', 'piccadilly_eastbound', etc.
         """
         normalized = text.lower()
 

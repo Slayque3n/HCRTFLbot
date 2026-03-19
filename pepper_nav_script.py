@@ -86,16 +86,28 @@ class PepperPlatformNavNav2(Node):
         except Exception:
             self.get_logger().warn("No saved locations file found. Using defaults.")
             self.locations = {
-                "district_eastbound": {
-                    "x": 1.25,
-                    "y": 0.50,
-                    "yaw": 1.57,
+                "piccadilly_westbound": {
+                    "x": -1.0,
+                    "y": -5.0,
+                    "yaw": 1.33,
                     "frame_id": "map",
                 },
-                "piccadilly_southbound": {
-                    "x": -2.10,
-                    "y": 3.45,
-                    "yaw": 0.0,
+                "piccadilly_eastbound": {
+                    "x": -1.0,
+                    "y": -5.0,
+                    "yaw": 1.33,
+                    "frame_id": "map",
+                },
+                "district_eastbound": {
+                    "x": 1.72,
+                    "y": -6.69,
+                    "yaw": -3.10,
+                    "frame_id": "map",
+                },
+                "district_westbound": {
+                    "x": 1.66,
+                    "y": 5.33,
+                    "yaw": -1.81,
                     "frame_id": "map",
                 },
             }
@@ -157,7 +169,7 @@ class PepperPlatformNavNav2(Node):
             self.publish_status('nav_unavailable', 'Nav2 action server not available', None)
             return
 
-        pose_dict = self.locations["test_point"]
+        pose_dict = self.locations[name]
         goal_pose = PoseStamped()
         goal_pose.header.stamp = self.get_clock().now().to_msg()
         goal_pose.header.frame_id = pose_dict.get('frame_id', self.default_frame_id)
@@ -169,6 +181,9 @@ class PepperPlatformNavNav2(Node):
         goal.pose = goal_pose
 
         self.active_goal_name = name
+        at_goal_msg = Bool()
+        at_goal_msg.data = False
+        self.at_goal_pub.publish(at_goal_msg)
         self.publish_status('goal_sent', f'Sending {name} to Nav2', name)
 
         send_future = self.nav_client.send_goal_async(goal)

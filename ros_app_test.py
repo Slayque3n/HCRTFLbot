@@ -206,10 +206,9 @@ def index():
 
     ui = translations["en-US"]
 
-    # Always greet when landing on the main menu
     if request.method == "HEAD":
         return "", 200
-    
+
     publish_llm_payload({
         "type": "main_menu",
         "text": "Hello. How can I help you?"
