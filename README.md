@@ -36,7 +36,7 @@ This repository includes ALL project deliverables:
 
 ### Hardware & Schematics
 
-NEEDS DOING
+
 - System architecture design
 - Hardware integration (Pepper, Jetson, Raspberry Pi, sensors)
 - Wiring/setup details (if applicable)
@@ -61,14 +61,13 @@ NEEDS DOING
 - Setup instructions
 - Design decisions
 
-📄 Full report: :contentReference[oaicite:0]{index=0}
 
 ---
 
 ## System Architecture
 
 <p align="center">
-  <img src="figures/SystemDesign.png" width="600"/>
+  <img src="figures/SystemDesign.drawio" width="600"/>
 </p>
 
 <p align="center">
