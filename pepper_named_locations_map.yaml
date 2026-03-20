@@ -1,0 +1,22 @@
+# pepper_named_locations_map.yaml
+district_eastbound:
+  x: 1.25
+  y: 0.50
+  yaw: 1.57
+  frame_id: "map"
+piccadilly_southbound:
+  x: -2.10
+  y: 3.45
+  yaw: 0.0
+  frame_id: "map"
+  
+district_westbound:
+  x: 1.25
+  y: 0.50
+  yaw: 1.57
+  frame_id: "map"
+piccadilly_northbound:
+  x: -2.10
+  y: 3.45
+  yaw: 0.0
+  frame_id: "map"

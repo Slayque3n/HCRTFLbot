@@ -217,3 +217,17 @@
 
 </body>
 </html>
+<script>
+function checkBSL() {
+    fetch('/bsl/check')
+        .then(response => response.json())
+        .then(data => {
+            if (data.valid) {
+                window.location.href = '/bsl/result';
+            }
+        });
+}
+
+// Check every second
+setInterval(checkBSL, 1000);
+</script>
