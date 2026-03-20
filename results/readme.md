@@ -6,13 +6,9 @@ This script reads participant responses from `Survey_Data.csv`, processes the da
 - `cognitive_load.png`
 - `spider_plot.png`
 
-## Files Generated
 
-![Task Completion Time](time_taken.png)
 
-![Cognitive Load](cognitive_load.png)
 
-![User Satisfaction Survey Comparison](spider_plot.png)
 
 ## How the Data Was Processed
 
@@ -35,6 +31,7 @@ The script reads values from the `Time Taken (seconds)` column and computes the 
 - Mobile Aid
 
 These averages are used to generate `time_taken.png`.
+![Task Completion Time](time_taken.png)
 
 ### 4. Cognitive load chart
 Cognitive load is calculated as the average of four NASA-TLX-style columns for each participant:
@@ -45,7 +42,7 @@ Cognitive load is calculated as the average of four NASA-TLX-style columns for e
 - `How insecure, discouraged, irritated, stressed, and annoyed were you while completing the task?`
 
 The script first computes a per-participant cognitive load score, then averages that score by condition to generate `cognitive_load.png`.
-
+![Cognitive Load](cognitive_load.png)
 ### 5. Radar / spider plot
 The radar chart compares user satisfaction between the two robot-assisted conditions only:
 
@@ -69,7 +66,7 @@ These are displayed as:
 - Prefer over traditional aid
 
 The resulting comparison is saved as `spider_plot.png`.
-
+![User Satisfaction Survey Comparison](spider_plot.png)
 ## Notes
 
 - The user satisfaction bar chart was removed.
