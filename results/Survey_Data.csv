@@ -1,0 +1,25 @@
+Timestamp,Which test did you partake in,How mentally demanding was the task?,How hurried or rushed was the pace of the task? ,How successful were you in accomplishing what you were asked to do? ,How hard did you have to work to accomplish your level of performance? ,"How insecure, discouraged, irritated, stressed, and annoyed were you while completing the task? ",“I found the guidance provided by the robot easy to understand.”,“The robot helped me reach my destination efficiently.”,“I felt confident navigating the station with the robot’s assistance.”,“Using the robot reduced the mental effort required to navigate the station.”,“I would prefer using this robot over traditional signage or maps.”,Time Taken (seconds)
+20/03/2026 09:35:23,No Guidance,3,3,5,3,1,,,,,,19
+20/03/2026 09:36:14,No Guidance,3,2,5,3,1,,,,,,21
+20/03/2026 09:37:01,No Guidance,1,1,5,1,1,,,,,,34
+20/03/2026 09:37:29,No Guidance,3,1,5,2,1,,,,,,24
+20/03/2026 09:37:52,No Guidance,2,2,5,3,3,,,,,,28
+20/03/2026 09:39:16,Speech Guidance,2,2,5,2,1,4,4,3,4,4,24
+20/03/2026 09:39:50,Speech Guidance,1,1,5,2,1,4,4,3,4,3,18
+20/03/2026 09:41:25,Speech Guidance,2,2,5,2,1,3,3,3,4,5,17
+20/03/2026 09:42:37,Speech Guidance,1,1,5,2,1,3,4,3,4,4,23
+20/03/2026 09:43:33,Speech Guidance,1,1,5,1,4,2,1,2,2,3,20
+20/03/2026 09:44:49,Speech and Navigation Guidance,1,1,5,1,2,5,4,5,5,2,86
+20/03/2026 09:45:37,Speech and Navigation Guidance,1,1,5,1,3,5,3,5,4,2,74
+20/03/2026 09:46:13,Speech and Navigation Guidance,1,1,5,2,2,5,4,5,5,3,85
+20/03/2026 09:47:00,Speech and Navigation Guidance,1,1,5,1,4,3,1,1,3,1,80
+20/03/2026 09:47:44,Speech and Navigation Guidance,1,1,5,1,1,5,3,5,5,3,82
+,,,,,,,,,,,,
+,,,,,,,,,,,,
+,,,,,,,,,,,,
+,,,,,,,,,,,,
+,,,,,,,,,,,,
+Column 1,"NASA Task Load Index (Columns C, D, F, G)",Likert Scale User Satisfaction,Time Taken,,,,,,,,,
+No guidance,2,,25.2,,,,,,,,,
+Speech Guidance,1.55,3.32,20.4,,,,,,,,,
+Speech and Navigation Guidance,1.4,3.68,81.4,,,,,,,,,
