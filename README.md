@@ -67,7 +67,7 @@ This repository includes ALL project deliverables:
 ## System Architecture
 
 <p align="center">
-  <img src="figures/SystemDesign.drawio" width="600"/>
+  <img src="figures/SystemDesign.drawio.png" width="600"/>
 </p>
 
 <p align="center">
