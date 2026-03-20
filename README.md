@@ -134,4 +134,5 @@ Key technologies:
 | Tshepo Nkutlwang | Mapping and environment representation |
 | Isobel Owens | Collision avoidance system |
 | Dinushan Camilus | Lower body movement and locomotion control |
-| Akin Falase | Upper body movement
+| Akin Falase | Upper body movement |
+| Dylan Winters | Upper body movement, gesture control, and team leadership |
