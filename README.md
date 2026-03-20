@@ -100,12 +100,12 @@ Key technologies:
 ### 1. Speech Interaction
 - Natural language queries
 - Google Speech Recognition integration
-- Gemini-powered responses :contentReference[oaicite:1]{index=1}
+- Gemini-powered responses 
 
 ### 2. Sign Language Recognition
 - MediaPipe hand tracking
 - SVM-based classification
-- Supports BSL alphabet and numbers :contentReference[oaicite:2]{index=2}
+- Supports BSL alphabet and numbers 
 
 ### 3. Multimodal Communication
 - Speech + gesture synchronisation
@@ -119,7 +119,7 @@ Key technologies:
 See more details here:  
 [Map README](Mapping/maps/README.md)
 
-[CollisionAvoidanceREADME](Obsatcle_Avoidance/README.md)
+[Collision Avoidance README](./Obstacle%20Avoidance/README.md)
 
 ### 5. User Interface
 - Language selection
