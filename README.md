@@ -57,12 +57,9 @@ This repository includes ALL project deliverables:
 - Mapping and LiDAR outputs
 
 ### Documentation
-- Design report
 [Design report](Documentation/HumanCenteredRoboticsDesignReport.pdf)
-- Final report
 
-[Design report](Documentation/HumanCenteredRoboticsfinal.pdf)
-- Setup instructions (see below)
+[Final report](Documentation/HumanCenteredRoboticsfinal.pdf)
 
 ### Results
 
