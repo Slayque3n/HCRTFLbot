@@ -1,45 +1,118 @@
-# To Run
-To run webbased translation run App.py, to run rkinter based talking run UI.py
+# TFLBot – A Helping Hand in Underground Transport
 
+## Overview
+TFLBot is a mobile assistive robot designed to support passengers navigating complex underground transport environments.
 
+It provides:
+- Autonomous navigation guidance
+- Multimodal interaction (speech, visual feedback, BSL)
+- Accessibility-focused assistance
 
-
-## Development Workflow
-
-To keep `main` stable, **direct pushes to `main` are blocked**.  
-All changes **must go through a Pull Request (PR)**.
+This repository contains **all materials required to understand, reproduce, and extend the project**, ensuring future teams can continue development seamlessly.
 
 ---
 
-### How to Make Changes
+## Project Aim
+The system investigates whether robotic guidance improves:
+- Navigation efficiency
+- User experience
+- Cognitive workload
 
-#### 1. Create a New Branch
-Always branch off `main`.
+Two modes were evaluated:
+1. Stationary robot (verbal guidance only)
+2. Mobile robot (physical + multimodal guidance)
 
+---
 
-#### 2. updating ur branch with main
-Before opening or updating a Pull Request, you must sync your feature branch with the latest changes from `main`.  
-This helps prevent merge conflicts and ensures your code is reviewed against the most up-to-date version of the project.
+## Repository Contents
 
-Run the following commands from your feature branch:
+This repository includes ALL project deliverables:
 
+### Software
+- ROS2-based control system
+- Speech recognition and NLP integration
+- Navigation and path planning algorithms
+- Gesture and interaction modules
 
+### Hardware & Schematics
 
+NEEDS DOING
+- System architecture design
+- Hardware integration (Pepper, Jetson, Raspberry Pi, sensors)
+- Wiring/setup details (if applicable)
 
-# Make sure you are on your feature branch
-git checkout your-branch-name
+### Datasheets
+- Sensors (RPLIDAR, Femto Bolt camera, microphone array)
+- Processing units (Jetson Orin Nano, Raspberry Pi 5)
+- Robot platform (Pepper)
 
-# Fetch the latest changes from the remote
-git fetch origin
+### Experimental Results
+- Navigation performance metrics
+- User study data (time, errors, cognitive load, satisfaction)
+- Logs and evaluation outputs
 
-# Merge main into your branch
-git merge origin/main
+### Supplementary Figures
+- System architecture diagrams
+- UI screenshots
+- Mapping and LiDAR outputs
 
-# If conflicts occur:
-# 1. Resolve them in the files
-# 2. Then run:
-# git add .
-# git commit
+### Documentation
+- Final report (see below)
+- Setup instructions
+- Design decisions
 
-# Push the updated branch
-git push
+📄 Full report: :contentReference[oaicite:0]{index=0}
+
+---
+
+## System Architecture
+
+The system consists of multiple integrated components:
+
+- **Pepper Robot** (interaction + mobility)
+- **Jetson Orin Nano** (central processing)
+- **Raspberry Pi 5** (sensor interfacing)
+- **Femto Bolt Camera** (vision + tracking)
+- **RPLIDAR A2M12** (mapping + collision avoidance)
+- **Microphone Array** (speech input)
+
+Key technologies:
+- ROS2 Humble
+- NAOqi bridge
+- Flask-based UI
+- Gemini API (NLP)
+
+---
+
+## Features
+
+### 1. Speech Interaction
+- Natural language queries
+- Google Speech Recognition integration
+- Gemini-powered responses :contentReference[oaicite:1]{index=1}
+
+### 2. Sign Language Recognition
+- MediaPipe hand tracking
+- SVM-based classification
+- Supports BSL alphabet and numbers :contentReference[oaicite:2]{index=2}
+
+### 3. Multimodal Communication
+- Speech + gesture synchronisation
+- Directional pointing
+- Visual UI feedback
+
+### 4. Navigation & Mobility
+- A* path planning
+- LiDAR-based obstacle avoidance
+- SLAM mapping
+
+### 5. User Interface
+- Language selection
+- Real-time transcription
+- BSL interaction mode
+- Accessibility-first design
+
+---
+
+## Project Structure
+NEED TO ORGANISE
