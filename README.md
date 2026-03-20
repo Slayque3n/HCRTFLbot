@@ -67,6 +67,14 @@ NEEDS DOING
 
 ## System Architecture
 
+<p align="center">
+  <img src="figures/system_design.png" width="600"/>
+</p>
+
+<p align="center">
+  <em>Figure: High-level system architecture of TFLBot</em>
+</p>
+
 The system consists of multiple integrated components:
 
 - **Pepper Robot** (interaction + mobility)
