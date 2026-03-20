@@ -60,6 +60,8 @@ This repository includes ALL project deliverables:
 - Design report
 [Design report](Documentation/HumanCenteredRoboticsDesignReport.pdf)
 - Final report
+
+[Design report](Documentation/HumanCenteredRoboticsfinal.pdf)
 - Setup instructions (see below)
 
 ### Results
@@ -120,14 +122,14 @@ Key technologies:
 See more details here:  
 [Map README](Mapping/maps/README.md)
 
-[Collision Avoidance README](Obsatcle Avoidance/README.md)
+[CollisionAvoidanceREADME](Obsatcle_Avoidance/README.md)
 
 ### 5. User Interface
 - Language selection
 - Real-time transcription
 - BSL interaction mode
 - Accessibility-first design
-
+[cameraREADME](camera/README.md)
 ---
 
 ## Team Contributions (Who Did What)
