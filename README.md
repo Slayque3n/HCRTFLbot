@@ -63,7 +63,7 @@ This repository includes ALL project deliverables:
 ### Results
 
 See detailed results here:  
-[Results README](results/README.md)
+[Results README](results/readme.md)
 
 ---
 
@@ -115,6 +115,9 @@ Key technologies:
 - A* path planning
 - LiDAR-based obstacle avoidance
 - SLAM mapping
+See more details here:  
+[Map README](Mapping/maps/README.md)
+
 
 ### 5. User Interface
 - Language selection
