@@ -58,7 +58,7 @@ This repository includes ALL project deliverables:
 
 ### Documentation
 - Design report
-[Design report](Documentation/HumanCenteredRoboticsDesignReport)
+[Design report](Documentation/HumanCenteredRoboticsDesignReport.pdf)
 - Final report
 - Setup instructions (see below)
 
@@ -143,3 +143,7 @@ See more details here:
 | Dinushan Camilus | Lower body movement and locomotion control |
 | Akin Falase | Upper body movement |
 | Dylan Winters | Upper body movement, gesture control, and team leadership |
+
+
+---
+## How to Run
