@@ -60,7 +60,10 @@ This repository includes ALL project deliverables:
 - Final report (see below)
 - Setup instructions
 - Design decisions
+### Results
 
+See detailed results here:  
+[Results README](results/README.md)
 
 ---
 
