@@ -68,7 +68,7 @@ NEEDS DOING
 ## System Architecture
 
 <p align="center">
-  <img src="figures/NewSystemDesign.png" width="600"/>
+  <img src="figures/SystemDesign.png" width="600"/>
 </p>
 
 <p align="center">
