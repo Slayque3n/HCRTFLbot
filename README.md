@@ -68,7 +68,7 @@ NEEDS DOING
 ## System Architecture
 
 <p align="center">
-  <img src="figures/system_design.png" width="600"/>
+  <img src="figures/NewSystemDesign.png" width="600"/>
 </p>
 
 <p align="center">
@@ -122,5 +122,16 @@ Key technologies:
 
 ---
 
-## Project Structure
-NEED TO ORGANISE
+## Team Contributions (Who Did What)
+
+| Name | Contribution |
+|------|-------------|
+| Dhruv Varsani | BSL recognition and vision system (camera integration) |
+| Sophie Jayson | User interface and speech processing |
+| Sandro Enukidze | Microphone system and audio input |
+| Arundhathi Pasquereau | 3D modelling and design assets |
+| Adeola Olawoye | System integration |
+| Tshepo Nkutlwang | Mapping and environment representation |
+| Isobel Owens | Collision avoidance system |
+| Dinushan Camilus | Lower body movement and locomotion control |
+| Akin Falase | Upper body movement
