@@ -14,8 +14,8 @@ import re
 
 bsl_info = None
 flask_node = None
-msg_lock = Lock()  # for thread-safe access to latest_message
-node_lock = Lock() # for thread-safe access to the flask node
+msg_lock = Lock() 
+node_lock = Lock()
 ros_station_response = None
 platform_info = None
 bsl_redirect = False
@@ -39,7 +39,7 @@ class FlaskNode(Node):
             'bsl_data',
             self.listener_callback,
             10)
-        self.subscription  # prevent unused variable warning
+        self.subscription
 
 
     def listener_callback(self, msg):

@@ -21,7 +21,6 @@ class LlmGestureSpeechNode(Node):
     def __init__(self):
         super().__init__('llm_gesture_speech_node')
 
-        # --- Topics ---
         self.llm_topic = '/llm_topic'
         self.speech_topic = '/speech'
         self.angles_topic = '/joint_angles'
@@ -29,24 +28,12 @@ class LlmGestureSpeechNode(Node):
         self.platform_topic = '/platform_name' 
         self.status_topic = '/robot_at_goal'
          
-        self.lift_door_topic = '/lift_door_open'
-        self.lift_door_event = threading.Event()
-        self.lift_door_event.clear()
+         
 
-        self.lift_door_sub = self.create_subscription(
-            Bool,
-            self.lift_door_topic,
-            self.lift_door_callback,
-            10
-        )
-         
-         
-        # Modes: "speech_only", "speech_and_gestures", or "guide_and_navigate"
         self.operating_mode = "guide_and_navigate"
         self.main_menu_greeting = "Hello. How can I help you?" 
         self.follow_me_bag = "bag/follow_mee"
-        
-        # --- ROS interfaces ---
+ 
         self.subscription = self.create_subscription(
             String,
             self.llm_topic,
@@ -66,25 +53,26 @@ class LlmGestureSpeechNode(Node):
         self.stiffness_pub_ = self.create_publisher(JointState, self.stiffness_topic, 10)
         self.platform_pub_ = self.create_publisher(String, self.platform_topic, 10)
 
+        self.crouch_bag = "bag/crouch"
         self.thinking_bag = "bag/thinking"
         self.thinking_active = threading.Event()
         self.thinking_thread = None
         self.thinking_stop_event = threading.Event()
-        # --- Coordination State ---
+
         self.robot_ready_event = threading.Event()
-        # Initialize as cleared (locked)
+
         self.robot_ready_event.clear() 
         
         self.command_queue = queue.Queue()
 
-        # --- Playback config ---
+
         self.playback_speed = 1.0
         self.trim_threshold = 0.02
         self.fixed_gesture_delay_map = {
             "follow_me": 2.3,
             "thinking": 0.1,
         }
-        # Gesture Mappings
+
         self.gesture_map = {
             "didn't hear": "bag/didnt_hear",
             "left": "bag/point_left",
@@ -96,94 +84,11 @@ class LlmGestureSpeechNode(Node):
         }
         self.seconds_per_word = 0.25
         self.speech_startup_offset = 0.2
-        # Start the background worker thread
         self.worker = threading.Thread(target=self.worker_loop, daemon=True)
         self.worker.start()
 
         self.get_logger().info('DEBUG: LlmGestureSpeechNode initialized. Sync event is cleared.')
-    def lift_door_callback(self, msg: Bool):
-        if msg.data:
-            self.get_logger().info('DEBUG: Lift door open flag received.')
-            self.lift_door_event.set()
-        else:
-            self.get_logger().info('DEBUG: Lift door flag reset.')
-            
-    def navigate_to_named_location(self, location_name: str, timeout: float = 120.0) -> bool:
-        self.robot_ready_event.clear()
 
-        msg = String()
-        msg.data = location_name
-        self.platform_pub_.publish(msg)
-
-        self.get_logger().info(f'DEBUG: Navigating to {location_name}')
-        arrived = self.robot_ready_event.wait(timeout=timeout)
-
-        if arrived:
-            self.get_logger().info(f'DEBUG: Arrived at {location_name}')
-            return True
-
-        self.get_logger().error(f'DEBUG: Timed out reaching {location_name}')
-        return False
-    
-    def wait_for_lift_door(self, timeout: float = 60.0) -> bool:
-        self.get_logger().info('DEBUG: Waiting for lift door open flag...')
-        opened = self.lift_door_event.wait(timeout=timeout)
-    
-        if opened:
-            self.get_logger().info('DEBUG: Lift door opened.')
-            self.lift_door_event.clear()
-            return True
-    
-        self.get_logger().error('DEBUG: Timed out waiting for lift door open flag.')
-        return False
-    
-    def run_piccadilly_lift_sequence(self, station: str, final_platform: str, final_guidance: str):
-        # 1. Go to the lift door
-        if not self.navigate_to_named_location("lift_door_outside", timeout=120.0):
-            return
-
-        # 2. Ask user to call lift
-        self.say_text("Call the lift please.")
-
-        # 3. Wait for lift open
-        if not self.wait_for_lift_door(timeout=120.0):
-            return
-
-        # 4. Go into lift
-        if not self.navigate_to_named_location("lift_inside_entry", timeout=60.0):
-            return
-
-        # 5. Turn around inside lift
-        if not self.navigate_to_named_location("lift_inside_turned", timeout=60.0):
-            return
-
-        # 6. Ask for floor 8
-        self.say_text("Press floor 8 please.")
-
-        # 7. Wait for lift open again
-        if not self.wait_for_lift_door(timeout=180.0):
-            return
-
-        # 8. Exit lift
-        if not self.navigate_to_named_location("lift_exit_outside", timeout=60.0):
-            return
-
-        # 9. Go to stored Piccadilly platform
-        if not self.navigate_to_named_location(final_platform, timeout=120.0):
-            return
-
-        # 10. Speak final guidance after arrival
-        trigger_phrase = self.find_trigger_phrase(final_guidance)
-        bag_path = self.find_matching_bag(final_guidance)
-
-        if bag_path and trigger_phrase:
-            self.speak_then_phrase_timed_gesture(
-                text=final_guidance,
-                bag_path=bag_path,
-                trigger_phrase=trigger_phrase
-            )
-        else:
-            self.say_text(final_guidance)
     def count_words(self, text: str) -> int:
         return len(re.findall(r"\b\w+\b", text))
     def speak_with_optional_fixed_delay(
@@ -236,7 +141,6 @@ class LlmGestureSpeechNode(Node):
 
         return self.speech_startup_offset + (preceding_word_count * self.seconds_per_word)
     def status_callback(self, msg: Bool):
-        """ Receives signal from Nav2 script when robot arrives at platform """
         if msg.data is True:
             self.get_logger().info(f'DEBUG: Received SUCCESS signal on {self.status_topic}. Setting event.')
             self.robot_ready_event.set()
@@ -291,21 +195,18 @@ class LlmGestureSpeechNode(Node):
                 if cmd_type == "thinking_stop":
                     self.stop_thinking_gesture()
                     continue
-                # Always say this when returning to / showing main menu
+   
                 if cmd_type == "main_menu":
                     self.get_logger().info('DEBUG: Main menu greeting triggered.')
                     self.say_text(self.main_menu_greeting)
                     continue
 
-                # Plain speech mode: never navigate, never do follow-me flow
-                # speech_only: talk only
                 if self.operating_mode == "speech_only":
                     self.get_logger().info('DEBUG: Running in speech_only mode.')
                     if text:
                         self.say_text(text)
                     continue
-                
-                # speech_and_gestures: talk + gesture, never navigate
+
                 if self.operating_mode == "speech_and_gestures":
                     self.get_logger().info('DEBUG: Running in speech_and_gestures mode.')
                     if text:
@@ -335,7 +236,7 @@ class LlmGestureSpeechNode(Node):
 
                         speech_thread.join()
                     continue
-                # guide_and_navigate mode
+
                 platform = payload.get("platform") or self.find_platform_in_text(text)
                 bag_path = self.find_matching_bag(text)
 
@@ -344,7 +245,7 @@ class LlmGestureSpeechNode(Node):
                     self.get_logger().info(
                         f'DEBUG: guide_and_navigate mode: station={station}, platform={platform}'
                     )
-                
+
                     follow_text = (
                         f"I will take you to {station}. "
                         f"We need to go to {self.platform_to_speech(platform)}. "
@@ -356,33 +257,45 @@ class LlmGestureSpeechNode(Node):
                         bag_path=self.follow_me_bag,
                         fixed_delay_key="follow_me"
                     )
-                
-                    if platform.startswith("piccadilly_"):
-                        self.run_piccadilly_lift_sequence(
-                            station=station,
-                            final_platform=platform,
-                            final_guidance=text
-                        )
-                        continue
+
+                    self.get_logger().info("DEBUG: Performing crouch before navigation.")
                     
-                    # existing non-lift direct navigation path
-                    if not self.navigate_to_named_location(platform, timeout=120.0):
-                        continue
+                    if os.path.exists(self.crouch_bag):
+                        self.play_gesture_bag_once(self.crouch_bag)
+                    else:
+                        self.get_logger().warn(f"Crouch bag not found: {self.crouch_bag}")
+                        
+                    self.robot_ready_event.clear()
+                    plat_msg = String()
+                    plat_msg.data = platform
                     
-                    if text:
-                        trigger_phrase = self.find_trigger_phrase(text)
-                        if bag_path and trigger_phrase:
-                            self.speak_then_phrase_timed_gesture(
-                                text=text,
-                                bag_path=bag_path,
-                                trigger_phrase=trigger_phrase
-                            )
-                        else:
-                            self.say_text(text)
-                
+                    self.platform_pub_.publish(plat_msg)
+
+                    self.get_logger().info(
+                        f'DEBUG: [WAITING] Waiting for {self.status_topic} == True'
+                    )
+
+                    arrived = self.robot_ready_event.wait(timeout=120.0)
+
+                    if arrived:
+                        self.get_logger().info('DEBUG: Arrived at goal.')
+
+                        if text:
+                            trigger_phrase = self.find_trigger_phrase(text)
+                        
+                            if bag_path and trigger_phrase:
+                                self.speak_then_phrase_timed_gesture(
+                                    text=text,
+                                    bag_path=bag_path,
+                                    trigger_phrase=trigger_phrase
+                                )
+                            else:
+                                self.say_text(text)
+                    else:
+                        self.get_logger().error('DEBUG: Timed out waiting for arrival.')
+
                     continue
 
-                # Fallback normal behavior
                 self.get_logger().info('DEBUG: guide_and_navigate fallback path.')
 
                 if text:
@@ -403,7 +316,6 @@ class LlmGestureSpeechNode(Node):
             finally:
                 self.command_queue.task_done()
     
-    # Only showing the modified parts
     def find_trigger_phrase(self, text: str):
         normalized = self.normalize_text(text)
         for phrase in sorted(self.gesture_map.keys(), key=len, reverse=True):
@@ -459,17 +371,12 @@ class LlmGestureSpeechNode(Node):
             time.sleep(0.1)
     
     def find_platform_in_text(self, text: str):
-        """
-        Identifies the specific platform at South Kensington.
-        Returns strings like: 'district_eastbound', 'piccadilly_eastbound', etc.
-        """
+
         normalized = text.lower()
 
-        # 1. Define the lines and directions relevant to South Ken
         lines = ["district", "circle", "piccadilly"]
         directions = ["eastbound", "westbound"]
 
-        # 2. Find which line is mentioned first
         found_line = None
         line_idx = float('inf')
         for line in lines:
@@ -481,30 +388,23 @@ class LlmGestureSpeechNode(Node):
         if not found_line:
             return None
 
-        # 3. Look for the direction immediately following that line
-        # We look at the text after the line name was found
         remaining_text = normalized[line_idx:]
         found_direction = None
         for direction in directions:
             if direction in remaining_text:
                 found_direction = direction
-                break # Take the first direction found after the line name
+                break 
 
-        # 4. Construct the specific platform name
         if found_line and found_direction:
             return f"{found_line}_{found_direction}"
 
-        return found_line # Fallback to just the line name if no direction is found
-
+        return found_line 
+    
     def find_station_in_text(self, text: str):
-        """
-        Try to identify a station name from the text.
-        Returns a title-cased station string, e.g. 'South Kensington', or None.
-        """
+
 
         normalized = text.lower().strip()
 
-        # Optional: known stations list
         known_stations = [
             "south kensington",
             "victoria",
@@ -520,7 +420,6 @@ class LlmGestureSpeechNode(Node):
             if station in normalized:
                 return station.title()
 
-        # Fallback regex patterns
         patterns = [
             r"(?:to|towards|for)\s+([a-z\s]+?)\s+station",
             r"(?:to|towards|for)\s+([a-z\s]+?)(?:\s+(district|circle|piccadilly|eastbound|westbound|northbound|southbound)|$)",

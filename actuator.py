@@ -21,7 +21,6 @@ class LlmGestureSpeechNode(Node):
     def __init__(self):
         super().__init__('llm_gesture_speech_node')
 
-        # --- Topics ---
         self.llm_topic = '/llm_topic'
         self.speech_topic = '/speech'
         self.angles_topic = '/joint_angles'
@@ -31,12 +30,10 @@ class LlmGestureSpeechNode(Node):
          
          
          
-        # Modes: "speech_only", "speech_and_gestures", or "guide_and_navigate"
         self.operating_mode = "guide_and_navigate"
         self.main_menu_greeting = "Hello. How can I help you?" 
         self.follow_me_bag = "bag/follow_mee"
         
-        # --- ROS interfaces ---
         self.subscription = self.create_subscription(
             String,
             self.llm_topic,
@@ -61,21 +58,17 @@ class LlmGestureSpeechNode(Node):
         self.thinking_active = threading.Event()
         self.thinking_thread = None
         self.thinking_stop_event = threading.Event()
-        # --- Coordination State ---
         self.robot_ready_event = threading.Event()
-        # Initialize as cleared (locked)
         self.robot_ready_event.clear() 
         
         self.command_queue = queue.Queue()
 
-        # --- Playback config ---
         self.playback_speed = 1.0
         self.trim_threshold = 0.02
         self.fixed_gesture_delay_map = {
             "follow_me": 2.3,
             "thinking": 0.1,
         }
-        # Gesture Mappings
         self.gesture_map = {
             "didn't hear": "bag/didnt_hear",
             "left": "bag/point_left",
@@ -87,14 +80,16 @@ class LlmGestureSpeechNode(Node):
         }
         self.seconds_per_word = 0.25
         self.speech_startup_offset = 0.2
-        # Start the background worker thread
         self.worker = threading.Thread(target=self.worker_loop, daemon=True)
         self.worker.start()
 
         self.get_logger().info('DEBUG: LlmGestureSpeechNode initialized. Sync event is cleared.')
 
+    #this block is for counting words in text
     def count_words(self, text: str) -> int:
         return len(re.findall(r"\b\w+\b", text))
+
+    #this block is for speaking text with an optional fixed or estimated gesture delay
     def speak_with_optional_fixed_delay(
         self,
         text: str,
@@ -129,6 +124,8 @@ class LlmGestureSpeechNode(Node):
             self.play_gesture_bag_once(bag_path)
 
         speech_thread.join()
+
+    #this block is for estimating delay before a trigger phrase occurs in speech
     def estimate_delay_to_phrase(self, full_text: str, trigger_phrase: str) -> float:
         if not full_text or not trigger_phrase:
             return 0.0
@@ -144,6 +141,8 @@ class LlmGestureSpeechNode(Node):
         preceding_word_count = self.count_words(preceding_text)
 
         return self.speech_startup_offset + (preceding_word_count * self.seconds_per_word)
+
+    #this block is for handling robot arrival status updates
     def status_callback(self, msg: Bool):
         """ Receives signal from Nav2 script when robot arrives at platform """
         if msg.data is True:
@@ -152,6 +151,7 @@ class LlmGestureSpeechNode(Node):
         else:
             self.get_logger().info('DEBUG: Received FALSE signal from Nav2. Still waiting...')
 
+    #this block is for handling incoming llm payloads
     def llm_callback(self, msg: String):
         raw = msg.data.strip()
         if not raw:
@@ -165,6 +165,7 @@ class LlmGestureSpeechNode(Node):
         self.get_logger().info(f'Received command payload: {payload}')
         self.command_queue.put(payload)
 
+    #this block is for speaking and triggering a gesture at a matched phrase
     def speak_then_phrase_timed_gesture(self, text: str, bag_path: str, trigger_phrase: str):
         speech_thread = threading.Thread(
             target=self.say_text,
@@ -185,6 +186,8 @@ class LlmGestureSpeechNode(Node):
             self.play_gesture_bag_once(bag_path)
 
         speech_thread.join()
+
+    #this block is for processing queued commands in the background worker
     def worker_loop(self):
         while rclpy.ok():
             payload = self.command_queue.get()
@@ -200,21 +203,17 @@ class LlmGestureSpeechNode(Node):
                 if cmd_type == "thinking_stop":
                     self.stop_thinking_gesture()
                     continue
-                # Always say this when returning to / showing main menu
                 if cmd_type == "main_menu":
                     self.get_logger().info('DEBUG: Main menu greeting triggered.')
                     self.say_text(self.main_menu_greeting)
                     continue
 
-                # Plain speech mode: never navigate, never do follow-me flow
-                # speech_only: talk only
                 if self.operating_mode == "speech_only":
                     self.get_logger().info('DEBUG: Running in speech_only mode.')
                     if text:
                         self.say_text(text)
                     continue
                 
-                # speech_and_gestures: talk + gesture, never navigate
                 if self.operating_mode == "speech_and_gestures":
                     self.get_logger().info('DEBUG: Running in speech_and_gestures mode.')
                     if text:
@@ -244,7 +243,6 @@ class LlmGestureSpeechNode(Node):
 
                         speech_thread.join()
                     continue
-                # guide_and_navigate mode
                 platform = payload.get("platform") or self.find_platform_in_text(text)
                 bag_path = self.find_matching_bag(text)
 
@@ -254,7 +252,6 @@ class LlmGestureSpeechNode(Node):
                         f'DEBUG: guide_and_navigate mode: station={station}, platform={platform}'
                     )
 
-                    # Before moving: follow-me message + follow-me gesture
                     follow_text = (
                         f"I will take you to {station}. "
                         f"We need to go to {self.platform_to_speech(platform)}. "
@@ -266,14 +263,13 @@ class LlmGestureSpeechNode(Node):
                         bag_path=self.follow_me_bag,
                         fixed_delay_key="follow_me"
                     )
-                    # --- NEW: Pre-navigation crouch ---
+                    
                     self.get_logger().info("DEBUG: Performing crouch before navigation.")
                     
                     if os.path.exists(self.crouch_bag):
                         self.play_gesture_bag_once(self.crouch_bag)
                     else:
                         self.get_logger().warn(f"Crouch bag not found: {self.crouch_bag}")
-                    # Publish platform for navigation
                     self.robot_ready_event.clear()
                     plat_msg = String()
                     plat_msg.data = platform
@@ -289,7 +285,6 @@ class LlmGestureSpeechNode(Node):
                     if arrived:
                         self.get_logger().info('DEBUG: Arrived at goal.')
 
-                        # After arrival: speak the original LLM guidance
                         if text:
                             trigger_phrase = self.find_trigger_phrase(text)
                         
@@ -306,7 +301,6 @@ class LlmGestureSpeechNode(Node):
 
                     continue
 
-                # Fallback normal behavior
                 self.get_logger().info('DEBUG: guide_and_navigate fallback path.')
 
                 if text:
@@ -327,13 +321,15 @@ class LlmGestureSpeechNode(Node):
             finally:
                 self.command_queue.task_done()
     
-    # Only showing the modified parts
+    #this block is for finding the trigger phrase for a gesture
     def find_trigger_phrase(self, text: str):
         normalized = self.normalize_text(text)
         for phrase in sorted(self.gesture_map.keys(), key=len, reverse=True):
             if phrase in normalized:
                 return phrase
         return None
+
+    #this block is for starting the looping thinking gesture
     def start_thinking_gesture(self):
         if self.thinking_active.is_set():
             self.get_logger().info('DEBUG: Thinking gesture already active.')
@@ -364,6 +360,7 @@ class LlmGestureSpeechNode(Node):
         self.thinking_thread.start()
         self.get_logger().info('DEBUG: Thinking gesture started.')
 
+    #this block is for stopping the looping thinking gesture
     def stop_thinking_gesture(self):
         if not self.thinking_active.is_set():
             self.get_logger().info('DEBUG: Thinking gesture already stopped.')
@@ -377,11 +374,14 @@ class LlmGestureSpeechNode(Node):
 
         self.thinking_thread = None
         self.get_logger().info('DEBUG: Thinking gesture stopped.')
+
+    #this block is for repeatedly playing the thinking gesture bag
     def _thinking_gesture_loop(self):
         while rclpy.ok() and self.thinking_active.is_set():
             self.play_gesture_bag_once(self.thinking_bag, stop_event=self.thinking_stop_event)
             time.sleep(0.1)
     
+    #this block is for finding a platform name inside guidance text
     def find_platform_in_text(self, text: str):
         """
         Identifies the specific platform at South Kensington.
@@ -389,11 +389,9 @@ class LlmGestureSpeechNode(Node):
         """
         normalized = text.lower()
 
-        # 1. Define the lines and directions relevant to South Ken
         lines = ["district", "circle", "piccadilly"]
         directions = ["eastbound", "westbound"]
 
-        # 2. Find which line is mentioned first
         found_line = None
         line_idx = float('inf')
         for line in lines:
@@ -405,21 +403,19 @@ class LlmGestureSpeechNode(Node):
         if not found_line:
             return None
 
-        # 3. Look for the direction immediately following that line
-        # We look at the text after the line name was found
         remaining_text = normalized[line_idx:]
         found_direction = None
         for direction in directions:
             if direction in remaining_text:
                 found_direction = direction
-                break # Take the first direction found after the line name
+                break
 
-        # 4. Construct the specific platform name
         if found_line and found_direction:
             return f"{found_line}_{found_direction}"
 
-        return found_line # Fallback to just the line name if no direction is found
+        return found_line
 
+    #this block is for finding a station name inside guidance text
     def find_station_in_text(self, text: str):
         """
         Try to identify a station name from the text.
@@ -428,7 +424,6 @@ class LlmGestureSpeechNode(Node):
 
         normalized = text.lower().strip()
 
-        # Optional: known stations list
         known_stations = [
             "south kensington",
             "victoria",
@@ -444,7 +439,6 @@ class LlmGestureSpeechNode(Node):
             if station in normalized:
                 return station.title()
 
-        # Fallback regex patterns
         patterns = [
             r"(?:to|towards|for)\s+([a-z\s]+?)\s+station",
             r"(?:to|towards|for)\s+([a-z\s]+?)(?:\s+(district|circle|piccadilly|eastbound|westbound|northbound|southbound)|$)",
@@ -458,12 +452,15 @@ class LlmGestureSpeechNode(Node):
                     return " ".join(word.capitalize() for word in station.split())
 
         return None
+
+    #this block is for publishing speech text
     def say_text(self, text: str):
         msg = String()
         msg.data = text
         self.speech_pub_.publish(msg)
         self.get_logger().info(f'Speech published: "{text}"')
 
+    #this block is for converting platform ids into spoken text
     def platform_to_speech(self, platform: str) -> str:
         if not platform:
             return ""
@@ -475,12 +472,14 @@ class LlmGestureSpeechNode(Node):
 
         return platform.replace("_", " ").capitalize()
     
+    #this block is for normalizing text for matching
     def normalize_text(self, text: str) -> str:
         text = text.lower().strip()
         text = re.sub(r"[^a-z0-9\s]", " ", text)
         text = re.sub(r"\s+", " ", text)
         return text
 
+    #this block is for finding a matching gesture bag from text
     def find_matching_bag(self, text: str):
         normalized = self.normalize_text(text)
         for phrase in sorted(self.gesture_map.keys(), key=len, reverse=True):
@@ -490,7 +489,7 @@ class LlmGestureSpeechNode(Node):
                 return bag_path
         return None
 
-
+    #this block is for publishing the follow me speech
     def say_follow_me_message(self, station: str, platform: str):
         spoken_platform = self.platform_to_speech(platform)
     
@@ -502,6 +501,8 @@ class LlmGestureSpeechNode(Node):
         )
         self.speech_pub_.publish(msg)
         self.get_logger().info(f'Follow-me speech published: "{msg.data}"')
+
+    #this block is for loading joint trajectories from a rosbag
     def load_bag(self, bag_dir_path):
         trajectory = []
         reader = rosbag2_py.SequentialReader()
@@ -541,6 +542,7 @@ class LlmGestureSpeechNode(Node):
         self.get_logger().info(f'Loaded {message_count} joint states from {bag_dir_path}')
         return trajectory
 
+    #this block is for trimming static frames from a trajectory
     def trim_trajectory(self, trajectory):
         if not trajectory:
             return trajectory
@@ -574,6 +576,7 @@ class LlmGestureSpeechNode(Node):
         self.get_logger().info(f'Trimmed to {len(trimmed)} frames')
         return trimmed
 
+    #this block is for setting joint stiffness
     def set_stiffness(self, joint_names, target_stiffness=1.0):
         msg = JointState()
         msg.name = joint_names
@@ -583,6 +586,7 @@ class LlmGestureSpeechNode(Node):
             self.stiffness_pub_.publish(msg)
             time.sleep(0.2)
 
+    #this block is for playing a gesture rosbag once
     def play_gesture_bag_once(self, bag_dir_path, stop_event=None):
         if not os.path.exists(bag_dir_path):
             self.get_logger().error(f'Path missing: {bag_dir_path}')
@@ -617,6 +621,7 @@ class LlmGestureSpeechNode(Node):
         self.get_logger().info(f'Finished gesture for {bag_dir_path}')
 
 
+#this block is for starting and shutting down the ros node
 def main(args=None):
     rclpy.init(args=args)
     node = LlmGestureSpeechNode()

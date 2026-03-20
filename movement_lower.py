@@ -6,7 +6,7 @@ import tty
 import select
 
 # Configuration
-ROBOT_IP = "192.168.1.100"  # <--- Change this to your Pepper's IP
+ROBOT_IP = "192.168.1.100"  # <--- Change this to Pepper's IP
 PORT = 9559
 
 msg = """
