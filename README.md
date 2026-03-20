@@ -180,13 +180,14 @@ The server can be accessed from any device connected to the same network.
 Run the following on the Pepper robot:
 
 ```bash
-ssh nao@pepper.local "qicli call ..."
+ssh nao@pepper.local "qicli call ALTabletService.showWebview "{url of the webserver}""
 ```
 
 Notes:
 
 - Use `nao@Pepper` if not using Ethernet  
-- Ensure the Jetson and Pepper are on the same network  
+- Ensure the Jetson and Pepper are on the same network 
+- If the Jetson can't discover the Pepper over ethernet, refer to the end of the next section.
 
 ---
 
@@ -195,7 +196,7 @@ Notes:
 Source your ROS2 workspace:
 
 ```bash
-source install/setup.bash
+source ros2ws/install/setup.bash
 ```
 
 Run the driver:
@@ -230,10 +231,12 @@ python actuator.py
 ### 5. Launch Navigation Stack
 
 ```bash
-ros2 launch nav2_bringup bringup_launch.py
+ros2 launch pepper_nav2_test_with_rviz_fixed.launch.py
 ```
 
-(Adjust this command based on your Nav2 configuration if needed.)
+(Adjust this command based on your Nav2 configuration if needed. The default is:
+ros2 launch pepper_nav2_test_with_rviz_fixed.launch.py   map:="floor10lab_map_edited.yaml"   params_file:="pepper_nav2_params.yaml"   rviz_config:="pepper_nav_test.rviz"   bridge_script:="pepper_nav_script.py"
+)
 
 ---
 
@@ -250,7 +253,13 @@ ros2 launch nav2_bringup bringup_launch.py
 
 4. The robot will guide you to a predefined destination on the map  
 
-Destination locations can be modified in:
+Destination locations can be modified while running the Nav2 Launch script using:
+
+```bash
+ros2 topic pub --once /pepper_nav/save_named_location std_msgs/msg/String "{data: lift_exit_outside_1}"
+```
+
+These will be saved in:
 
 ```bash
 locations.json
