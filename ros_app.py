@@ -104,12 +104,17 @@ translations = {
 }
 
 
-def extract_platform_and_guidance(llm_response: str):
+def extract_station_platform_guidance(llm_response: str):
+    station = None
     platform = None
     guidance = llm_response.strip()
 
+    station_match = re.search(r"STATION:\s*(.*)", llm_response, re.IGNORECASE)
     platform_match = re.search(r"PLATFORM:\s*([a-z_]+)", llm_response, re.IGNORECASE)
     guidance_match = re.search(r"GUIDANCE:\s*(.*)", llm_response, re.IGNORECASE | re.DOTALL)
+
+    if station_match:
+        station = station_match.group(1).strip()
 
     if platform_match:
         platform = platform_match.group(1).strip().lower()
@@ -117,7 +122,7 @@ def extract_platform_and_guidance(llm_response: str):
     if guidance_match:
         guidance = guidance_match.group(1).strip()
 
-    return platform, guidance
+    return station, platform, guidance
 
 def handle_bsl_command(command):
     global ros_station_response  
@@ -235,19 +240,22 @@ def speak():
                 f"How do I get to {heard} from South Kensington via the underground? "
                 f"You are a station guide. "
                 f"Return the answer in exactly this format:\n"
+                f"STATION: <station_name>\n"
                 f"PLATFORM: <platform_name>\n"
                 f"GUIDANCE: <short spoken guidance>\n\n"
                 f"The platform_name must be one of:\n"
                 f"piccadilly_westbound, piccadilly_eastbound, "
                 f"district_eastbound, district_westbound, "
                 f"circle_eastbound, circle_westbound.\n\n"
+                f"The station_name must be the end station I want to get to from South Kensington\n"
                 f"Example:\n"
+                f"STATION: King's Cross St. Pancras.\n"
                 f"PLATFORM: piccadilly_eastbound\n"
-                f"GUIDANCE: From South Kensington, head to the Piccadilly Line platforms. "
+                f"GUIDANCE: From South Kensington, head to the Piccadilly Line platforms."
                 f"Take a train from the eastbound platform toward Cockfosters directly to King's Cross St. Pancras.\n\n"
                 f"Respond in {lang_name} for the GUIDANCE line, but keep the PLATFORM value in lowercase underscore format."
             )
-            platform, guidance = extract_platform_and_guidance(response)
+            station, platform, guidance = extract_station_platform_guidance(response)
             ALLOWED_PLATFORMS = {
                 "piccadilly_westbound",
                 "piccadilly_eastbound",
@@ -268,7 +276,7 @@ def speak():
         #text_to_speech(response, language)
         publish_llm_payload({
             "type": "station_guidance",
-            "station": heard,
+            "station": station or heard,
             "platform": platform,
             "text": guidance,
             "language": language
@@ -325,21 +333,25 @@ def bsl_result():
     try:
         response = ask_llm(
                     f"How do I get to {station} from South Kensington via the underground? "
-                    f"You are a station guide. "
-                    f"Return the answer in exactly this format:\n"
-                    f"PLATFORM: <platform_name>\n"
-                    f"GUIDANCE: <short spoken guidance>\n\n"
-                    f"The platform_name must be one of:\n"
-                    f"piccadilly_westbound, piccadilly_eastbound, "
-                    f"district_eastbound, district_westbound, "
-                    f"circle_eastbound, circle_westbound.\n\n"
-                    f"Example:\n"
-                    f"PLATFORM: piccadilly_eastbound\n"
-                    f"GUIDANCE: From South Kensington, head to the Piccadilly Line platforms. "
-                    f"Take a train from the eastbound platform toward Cockfosters directly to King's Cross St. Pancras.\n\n"
-                    f"Respond in en-US for the GUIDANCE line, but keep the PLATFORM value in lowercase underscore format."
-                )
-        platform, guidance = extract_platform_and_guidance(response)
+                        f"You are a station guide. "
+                        f"Return the answer in exactly this format:\n"
+                        f"STATION: <station_name>\n"
+                        f"PLATFORM: <platform_name>\n"
+                        f"GUIDANCE: <short spoken guidance>\n\n"
+                        f"The platform_name must be one of:\n"
+                        f"piccadilly_westbound, piccadilly_eastbound, "
+                        f"district_eastbound, district_westbound, "
+                        f"circle_eastbound, circle_westbound.\n\n"
+                        f"The station_name must be the end station I want to get to from South Kensington\n"
+                        f"Example:\n"
+                        f"STATION: King's Cross St. Pancras.\n"
+                        f"PLATFORM: piccadilly_eastbound\n"
+                        f"GUIDANCE: From South Kensington, head to the Piccadilly Line platforms."
+                        f"Take a train from the eastbound platform toward Cockfosters directly to King's Cross St. Pancras.\n\n"
+                        f"Respond in en-US for the GUIDANCE line, but keep the PLATFORM value in lowercase underscore format."
+                    )
+
+        station, platform, guidance = extract_station_platform_guidance(response)
         
         if not guidance:
             guidance = response.strip()
